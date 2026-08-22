@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+# commit-msg hook: exige formato "type(scope) descrição" onde type é feat|fix|chore
+MSG_FILE="$1"
+if [ -z "$MSG_FILE" ]; then
+  echo "Nenhum arquivo de mensagem de commit fornecido." >&2
+  exit 1
+fi
+first_line=$(sed -n '1p' "$MSG_FILE" | tr -d '\r')
+# Permite: feat(...), fix(...), chore(...) seguido de espaço e descrição
+pattern='^(feat|fix|chore)\([^\)]*\)\s.+'
+echo "$first_line" | grep -E "$pattern" >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+  cat <<'EOF' >&2
+Commit inválido.
+Use o formato: feat(scope) descrição
+Exemplos:
+  feat(create-logo) adiciona novo logo
+  fix(auth) corrige bug no login
+  chore(deps) atualiza dependências
+O commit será rejeitado até que siga esse padrão.
+EOF
+  exit 1
+fi
+exit 0
