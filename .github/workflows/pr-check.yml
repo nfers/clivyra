@@ -1,0 +1,100 @@
+name: PR Quality Gate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+concurrency:
+  group: pr-quality-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    name: Repository Readiness
+    runs-on: ubuntu-latest
+    outputs:
+      node_ready: ${{ steps.detect.outputs.node_ready }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect Node workspace
+        id: detect
+        shell: bash
+        run: |
+          if [[ -f package.json && -f package-lock.json ]]; then
+            echo "node_ready=true" >> "$GITHUB_OUTPUT"
+            echo "Node workspace detected. Full quality gates will run."
+          else
+            echo "node_ready=false" >> "$GITHUB_OUTPUT"
+            echo "Node workspace is not bootstrapped yet."
+            echo "Expected package.json and package-lock.json at repository root."
+            echo "This is valid before Sprint 0 bootstrap is implemented."
+          fi
+
+  quality:
+    name: Lint, Typecheck and Tests
+    needs: readiness
+    if: needs.readiness.outputs.node_ready == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+  security:
+    name: Security Guardrails
+    needs: readiness
+    if: needs.readiness.outputs.node_ready == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+  bootstrap-status:
+    name: Bootstrap Gate Status
+    needs: readiness
+    if: needs.readiness.outputs.node_ready != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Explain skipped Node gates
+        run: |
+          echo "Quality and security Node gates are intentionally skipped."
+          echo "They will activate automatically when Sprint 0 creates package.json and package-lock.json."
