@@ -3,6 +3,7 @@ import type { MembershipRole } from '@prisma/client'
 export interface AuthenticatedPrincipal {
   id: string
   currentTenantId: string
+  sessionId?: string
 }
 
 export interface TenantContext {
