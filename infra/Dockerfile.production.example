@@ -1,0 +1,32 @@
+# Exemplo de Dockerfile de PRODUÇÃO para deploy OCI.
+# Após o bootstrap do monorepo, alinhe `infra/Dockerfile` a estes targets
+# (`api` e `web`). O compose em `infra/oci/compose.yml` espera esses nomes.
+#
+# NÃO use `npm run dev` em imagem de deploy.
+
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/types/package.json packages/types/package.json
+RUN npm ci
+
+FROM deps AS build
+COPY . .
+RUN npm run build --workspaces --if-present
+
+FROM node:22-alpine AS api
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app /app
+EXPOSE 3001
+CMD ["npm", "run", "start", "--workspace", "@clivyra/api"]
+
+FROM node:22-alpine AS web
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app /app
+EXPOSE 3000
+CMD ["npm", "run", "start", "--workspace", "@clivyra/web"]
