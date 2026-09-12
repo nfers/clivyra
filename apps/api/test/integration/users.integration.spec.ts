@@ -260,4 +260,106 @@ describe('users & invitations (integration)', () => {
     const row = await prisma.invitation.findUniqueOrThrow({ where: { id: invitationId } })
     expect(row.status).toBe('EXPIRED')
   })
+
+  it('rejects accept when inviter was demoted or deactivated after inviting', async () => {
+    const ownerHash = (
+      await prisma.user.findUniqueOrThrow({ where: { id: fixtures.ownerA.id } })
+    ).passwordHash!
+    const adminUser = await prisma.user.create({
+      data: {
+        email: 'admin.inviter@a.test',
+        name: 'Admin Inviter',
+        passwordHash: ownerHash,
+      },
+    })
+    const adminMembership = await prisma.membership.create({
+      data: {
+        tenantId: fixtures.studioA.id,
+        userId: adminUser.id,
+        role: 'ADMIN',
+      },
+    })
+
+    const admin = await loginAs('admin.inviter@a.test', fixtures.ownerA.password)
+    const invite = await request('POST', '/users/invitations', {
+      token: admin.accessToken,
+      body: { email: 'stale-authority@a.test', role: 'PROFESSIONAL' },
+    })
+    expect(invite.status).toBe(201)
+    const invitationId = (invite.body as { id: string }).id
+
+    const mailbox = await request(
+      'GET',
+      `/__test__/mailbox?to=${encodeURIComponent('stale-authority@a.test')}`,
+    )
+    const token = (mailbox.body as Array<{ text: string }>)[0]?.text.match(
+      /\/convite\/([A-Za-z0-9_-]+)/,
+    )?.[1]
+    expect(token).toBeTruthy()
+
+    // Demote inviter so they lose users:write / assign authority.
+    const owner = await loginAs(fixtures.ownerA.email, fixtures.ownerA.password)
+    const demote = await request('PATCH', `/users/${adminMembership.id}/role`, {
+      token: owner.accessToken,
+      body: { role: 'RECEPTION' },
+    })
+    expect(demote.status).toBe(200)
+
+    const acceptAfterDemote = await request('POST', '/auth/invitations/accept', {
+      body: {
+        token,
+        name: 'Should Fail',
+        password: 'CorrectHorse1Battery!',
+      },
+    })
+    expect(acceptAfterDemote.status).toBe(404)
+    const revoked = await prisma.invitation.findUniqueOrThrow({ where: { id: invitationId } })
+    expect(revoked.status).toBe('REVOKED')
+
+    // Fresh invite from OWNER, then deactivate a new ADMIN inviter path:
+    const admin2 = await prisma.user.create({
+      data: {
+        email: 'admin.inviter2@a.test',
+        name: 'Admin Inviter 2',
+        passwordHash: ownerHash,
+      },
+    })
+    const admin2Membership = await prisma.membership.create({
+      data: {
+        tenantId: fixtures.studioA.id,
+        userId: admin2.id,
+        role: 'ADMIN',
+      },
+    })
+    const admin2Session = await loginAs('admin.inviter2@a.test', fixtures.ownerA.password)
+    const invite2 = await request('POST', '/users/invitations', {
+      token: admin2Session.accessToken,
+      body: { email: 'stale-deactivated@a.test', role: 'RECEPTION' },
+    })
+    expect(invite2.status).toBe(201)
+    const invitation2Id = (invite2.body as { id: string }).id
+    const mailbox2 = await request(
+      'GET',
+      `/__test__/mailbox?to=${encodeURIComponent('stale-deactivated@a.test')}`,
+    )
+    const token2 = (mailbox2.body as Array<{ text: string }>)[0]?.text.match(
+      /\/convite\/([A-Za-z0-9_-]+)/,
+    )?.[1]
+
+    const deactivate = await request('POST', `/users/${admin2Membership.id}/deactivate`, {
+      token: owner.accessToken,
+    })
+    expect(deactivate.status).toBe(204)
+
+    const acceptAfterDeactivate = await request('POST', '/auth/invitations/accept', {
+      body: {
+        token: token2,
+        name: 'Should Also Fail',
+        password: 'CorrectHorse1Battery!',
+      },
+    })
+    expect(acceptAfterDeactivate.status).toBe(404)
+    const revoked2 = await prisma.invitation.findUniqueOrThrow({ where: { id: invitation2Id } })
+    expect(revoked2.status).toBe('REVOKED')
+  })
 })

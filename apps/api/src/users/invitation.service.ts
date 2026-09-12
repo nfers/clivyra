@@ -8,6 +8,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common'
 import type { AuthSessionResponse, Role, TenantContext } from '@clivyra/types'
+import { canAssignRole, hasPermission } from '@clivyra/types'
 import type { InvitationStatus, MembershipRole } from '@prisma/client'
 import { AUTH_EVENTS_PORT, type AuthEventsPort } from '../auth/auth-events.port'
 import { AuthService } from '../auth/auth.service'
@@ -246,6 +247,7 @@ export class InvitationService {
     request: RequestWithAuth,
   ): Promise<AuthSessionResponse> {
     const invitation = await this.findUsableInvitation(dto.token)
+    await this.assertInviterStillAuthorized(invitation)
 
     const existing = await this.prisma.user.findUnique({
       where: { email: invitation.email },
@@ -386,6 +388,7 @@ export class InvitationService {
           role: true,
           status: true,
           expiresAt: true,
+          invitedByUserId: true,
           tenant: { select: { id: true, slug: true, name: true, isActive: true } },
         },
       }),
@@ -408,5 +411,65 @@ export class InvitationService {
     }
 
     return invitation
+  }
+
+  /**
+   * Re-validate that the original inviter still may grant this invite at accept time
+   * (membership active, users:write, canAssignRole for the invite role).
+   */
+  private async assertInviterStillAuthorized(invitation: {
+    id: string
+    tenantId: string
+    email: string
+    role: MembershipRole
+    invitedByUserId: string
+  }): Promise<void> {
+    const inviterMembership = await this.prisma.bypassTenant('invitation-inviter-authority', () =>
+      this.prisma.membership.findFirst({
+        where: {
+          tenantId: invitation.tenantId,
+          userId: invitation.invitedByUserId,
+          isActive: true,
+          user: { isActive: true },
+          tenant: { isActive: true },
+        },
+        select: { id: true, role: true },
+      }),
+    )
+
+    const inviterRole = inviterMembership?.role as Role | undefined
+    const authorized =
+      Boolean(inviterRole) &&
+      hasPermission(inviterRole!, 'users:write') &&
+      canAssignRole(inviterRole!, invitation.role as Role)
+
+    if (authorized) {
+      return
+    }
+
+    await this.prisma.bypassTenant('invitation-revoke-stale-authority', async () => {
+      // Avoid unique collisions with prior REVOKED/EXPIRED rows for the same email.
+      await this.prisma.invitation.deleteMany({
+        where: {
+          tenantId: invitation.tenantId,
+          email: invitation.email,
+          status: { in: ['REVOKED', 'EXPIRED'] },
+          id: { not: invitation.id },
+        },
+      })
+      await this.prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'REVOKED', revokedAt: new Date() },
+      })
+    })
+
+    this.events.emit('users.invitation.revoked', {
+      tenantId: invitation.tenantId,
+      userId: invitation.invitedByUserId,
+      invitationId: invitation.id,
+      reason: 'inviter_authority_lost',
+    })
+
+    throw new NotFoundException()
   }
 }
