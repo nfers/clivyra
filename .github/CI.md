@@ -12,7 +12,7 @@ Full CI belt — lint + code standards, unit tests, integration tests, E2E, secu
 | Workflow | File | When | Purpose |
 | --- | --- | --- | --- |
 | PR Quality Gate | `.github/workflows/pr-check.yml` | pull_request (+ manual) | Lint, typecheck, tests, security when Node workspace exists; otherwise bootstrap-aware skip |
-| Deploy OCI | `.github/workflows/deploy-oci.yml` | push `develop`→dev, `master`→prod, or manual | SSH + Docker Compose deploy to OCI VMs (when present on branch) |
+| Deploy OCI | `.github/workflows/deploy-oci.yml` | push `master`→dev, tag `v*`→prod, or manual | SSH + Docker Compose deploy to OCI VMs (when present on branch) |
 
 OCI setup (VMs, secrets, `.env`): see [`infra/oci/README.md`](../infra/oci/README.md) when that tree is merged.
 
