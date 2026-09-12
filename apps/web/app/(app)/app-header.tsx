@@ -46,7 +46,7 @@ export function AppHeader({ session }: { session: MeResponse }) {
               disabled={pending}
               onChange={(event) => void switchTenant(event.target.value)}
             >
-              {session.memberships.map((item) => (
+              {session.memberships.map((item: { tenantId: string; name: string }) => (
                 <option key={item.tenantId} value={item.tenantId}>
                   {item.name}
                 </option>

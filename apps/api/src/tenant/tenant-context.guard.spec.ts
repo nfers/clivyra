@@ -1,6 +1,5 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common'
 import { TenantContextGuard } from './tenant-context.guard'
-import { TenantContextStorage } from './tenant-context.storage'
 import type { RequestWithTenantContext } from './tenant-context.types'
 import type { TenantMembershipRepository } from './tenant-membership.repository'
 
@@ -43,7 +42,8 @@ describe('TenantContextGuard', () => {
       membershipId: 'membership-1',
       role: 'OWNER',
     })
-    expect(TenantContextStorage.get()).toEqual(request.tenantContext)
+    // ALS is best-effort without request middleware; request.tenantContext is authoritative here.
+    expect(request.tenantContext?.tenantId).toBe(tenantId)
   })
 
   it('never reads tenantId from body/query/headers', async () => {

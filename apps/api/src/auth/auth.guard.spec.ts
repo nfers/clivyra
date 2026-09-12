@@ -7,7 +7,6 @@ import { IS_PUBLIC_KEY } from './public.decorator'
 
 function httpContext(
   request: RequestWithAuth & { headers: Record<string, string | undefined> },
-  handlerPublic = false,
 ): ExecutionContext {
   return {
     getHandler: () => ({}),
@@ -19,7 +18,7 @@ function httpContext(
 }
 
 describe('AuthGuard', () => {
-  const tokens = new AuthTokenService({
+  const tokens = AuthTokenService.forTest({
     accessTokenSecret: 'test-secret-with-more-than-thirty-two-chars',
     accessTokenTtlSeconds: 900,
     refreshTokenTtlSeconds: 604_800,

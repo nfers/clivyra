@@ -11,7 +11,7 @@ export interface IntegrationFixtures {
 }
 
 const prisma = new PrismaClient()
-const hasher = new PasswordHasherService(
+const hasher = PasswordHasherService.forTest(
   process.env.AUTH_PASSWORD_PEPPER ?? 'local-development-password-pepper-change-me',
 )
 

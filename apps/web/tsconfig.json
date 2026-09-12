@@ -15,7 +15,9 @@
       }
     ],
     "noEmit": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "moduleResolution": "bundler",
+    "module": "esnext"
   },
   "include": [
     "next-env.d.ts",

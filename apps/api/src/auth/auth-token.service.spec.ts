@@ -2,7 +2,7 @@ import { UnauthorizedException } from '@nestjs/common'
 import { AuthTokenService } from './auth-token.service'
 
 describe('AuthTokenService', () => {
-  const service = new AuthTokenService({
+  const service = AuthTokenService.forTest({
     accessTokenSecret: 'test-secret-with-more-than-thirty-two-chars',
     accessTokenTtlSeconds: 900,
     refreshTokenTtlSeconds: 604_800,
@@ -33,7 +33,7 @@ describe('AuthTokenService', () => {
       tenantId: 'tenant-a',
       sessionId: 'session-1',
     })
-    const otherService = new AuthTokenService({
+    const otherService = AuthTokenService.forTest({
       accessTokenSecret: 'another-secret-with-more-than-thirty-two-chars',
       accessTokenTtlSeconds: 900,
       refreshTokenTtlSeconds: 604_800,

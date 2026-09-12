@@ -1,7 +1,7 @@
 import { PasswordHasherService } from './password-hasher.service'
 
 describe('PasswordHasherService', () => {
-  const service = new PasswordHasherService('test-pepper-with-more-than-thirty-two-chars')
+  const service = PasswordHasherService.forTest('test-pepper-with-more-than-thirty-two-chars')
 
   it('hashes passwords without storing plaintext', async () => {
     const hash = await service.hash('CorrectHorse1Battery')
@@ -19,7 +19,7 @@ describe('PasswordHasherService', () => {
 
   it('fails when pepper differs', async () => {
     const hash = await service.hash('CorrectHorse1Battery')
-    const other = new PasswordHasherService('another-pepper-with-more-than-thirty-two-chars')
+    const other = PasswordHasherService.forTest('another-pepper-with-more-than-thirty-two-chars')
 
     await expect(other.verify('CorrectHorse1Battery', hash)).resolves.toBe(false)
   })

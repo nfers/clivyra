@@ -89,9 +89,8 @@ export class LogoutDto {
 }
 
 export class SwitchTenantDto {
-  // tenant-boundary: allow switch-tenant target — membership is revalidated server-side
   @IsString()
-  tenantId!: string
+  tenantId!: string // tenant-boundary: allow switch-tenant target — membership revalidated server-side
 }
 
 export class PasswordResetRequestDto {

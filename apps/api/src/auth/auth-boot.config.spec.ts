@@ -1,4 +1,4 @@
-import { assertAuthBootConfig, requireEnv } from '@clivyra/config'
+import { assertAuthBootConfig, requireEnv } from '../common/config/auth-boot'
 
 describe('auth boot config', () => {
   const original = { ...process.env }

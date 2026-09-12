@@ -46,6 +46,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @HttpCode(200)
   @Throttle(AUTH_THROTTLE.login)
   login(@Body() dto: LoginDto, @Req() request: Request & RequestWithAuth) {
     return this.auth.login(dto, request)
@@ -53,6 +54,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @HttpCode(200)
   @Throttle(AUTH_THROTTLE.refresh)
   refresh(@Body() dto: RefreshDto, @Req() request: Request & RequestWithAuth) {
     return this.auth.refresh(dto, request)
@@ -75,6 +77,7 @@ export class AuthController {
   }
 
   @Post('switch-tenant')
+  @HttpCode(200)
   @Throttle(AUTH_THROTTLE.switchTenant)
   @UseGuards(TenantContextGuard)
   switchTenant(

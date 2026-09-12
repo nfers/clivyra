@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { MailerModule } from '../mailer/mailer.module'
 import { PrismaModule } from '../prisma/prisma.module'
+import { TenantModule } from '../tenant/tenant.module'
 import { AUTH_EVENTS_PORT } from './auth-events.port'
 import { AuthController } from './auth.controller'
 import { AuthGuard } from './auth.guard'
@@ -11,7 +12,7 @@ import { PasswordHasherService } from './password-hasher.service'
 import { PasswordResetService } from './password-reset.service'
 
 @Module({
-  imports: [PrismaModule, MailerModule],
+  imports: [PrismaModule, MailerModule, TenantModule],
   controllers: [AuthController],
   providers: [
     AuthService,
@@ -27,3 +28,4 @@ import { PasswordResetService } from './password-reset.service'
   exports: [AuthGuard, AuthTokenService, AuthService],
 })
 export class AuthModule {}
+

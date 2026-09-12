@@ -11,12 +11,18 @@ const DIGEST = 'sha512'
 export class PasswordHasherService {
   private readonly pepper: string
 
-  constructor(pepper = process.env.AUTH_PASSWORD_PEPPER ?? 'local-development-password-pepper-change-me') {
+  constructor() {
+    const pepper = process.env.AUTH_PASSWORD_PEPPER ?? 'local-development-password-pepper-change-me'
     if (process.env.NODE_ENV === 'production' && !process.env.AUTH_PASSWORD_PEPPER) {
       throw new Error('AUTH_PASSWORD_PEPPER is required in production')
     }
-
     this.pepper = pepper
+  }
+
+  static forTest(pepper: string): PasswordHasherService {
+    const service = Object.create(PasswordHasherService.prototype) as PasswordHasherService
+    ;(service as unknown as { pepper: string }).pepper = pepper
+    return service
   }
 
   async hash(password: string): Promise<string> {

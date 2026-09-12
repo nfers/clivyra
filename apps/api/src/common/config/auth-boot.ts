@@ -5,17 +5,12 @@ const DEV_DEFAULT_SECRETS = new Set([
   'change-me-password-pepper-at-least-32-chars',
 ])
 
-export function getOptionalEnv(name: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const value = env[name]
-  return value?.trim() || undefined
-}
-
 export function requireEnv(
   name: string,
   options: { production?: boolean; minLength?: number; disallowDefaults?: boolean } = {},
   env: NodeJS.ProcessEnv = process.env,
 ): string {
-  const value = getOptionalEnv(name, env)
+  const value = env[name]?.trim() || undefined
   const isProduction = env.NODE_ENV === 'production'
   const required = options.production === true ? isProduction : true
 

@@ -28,26 +28,33 @@ export interface AccessTokenPayload {
 export class AuthTokenService {
   private readonly config: AuthTokenConfig
 
-  constructor(config?: Partial<AuthTokenConfig>) {
+  constructor() {
     const accessTokenSecret =
-      config?.accessTokenSecret ??
-      process.env.AUTH_ACCESS_TOKEN_SECRET ??
-      'local-development-access-token-secret-change-me'
+      process.env.AUTH_ACCESS_TOKEN_SECRET ?? 'local-development-access-token-secret-change-me'
 
-    if (process.env.NODE_ENV === 'production' && !process.env.AUTH_ACCESS_TOKEN_SECRET && !config?.accessTokenSecret) {
+    if (process.env.NODE_ENV === 'production' && !process.env.AUTH_ACCESS_TOKEN_SECRET) {
       throw new Error('AUTH_ACCESS_TOKEN_SECRET is required in production')
     }
 
     this.config = {
       accessTokenSecret,
-      accessTokenTtlSeconds: Number(config?.accessTokenTtlSeconds ?? process.env.AUTH_ACCESS_TOKEN_TTL_SECONDS ?? 900),
-      refreshTokenTtlSeconds: Number(
-        config?.refreshTokenTtlSeconds ?? process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 604_800,
-      ),
-      passwordResetTtlSeconds: Number(
-        config?.passwordResetTtlSeconds ?? process.env.AUTH_PASSWORD_RESET_TTL_SECONDS ?? 1_800,
-      ),
+      accessTokenTtlSeconds: Number(process.env.AUTH_ACCESS_TOKEN_TTL_SECONDS ?? 900),
+      refreshTokenTtlSeconds: Number(process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 604_800),
+      passwordResetTtlSeconds: Number(process.env.AUTH_PASSWORD_RESET_TTL_SECONDS ?? 1_800),
     }
+  }
+
+  /** Test helper — builds a service with explicit config without Nest DI. */
+  static forTest(config: Partial<AuthTokenConfig>): AuthTokenService {
+    const service = Object.create(AuthTokenService.prototype) as AuthTokenService
+    const accessTokenSecret = config.accessTokenSecret ?? 'test-secret-with-more-than-thirty-two-chars'
+    ;(service as unknown as { config: AuthTokenConfig }).config = {
+      accessTokenSecret,
+      accessTokenTtlSeconds: config.accessTokenTtlSeconds ?? 900,
+      refreshTokenTtlSeconds: config.refreshTokenTtlSeconds ?? 604_800,
+      passwordResetTtlSeconds: config.passwordResetTtlSeconds ?? 1_800,
+    }
+    return service
   }
 
   get accessTokenTtlSeconds(): number {

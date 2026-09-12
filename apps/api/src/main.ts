@@ -1,6 +1,6 @@
 import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
-import { assertAuthBootConfig } from '@clivyra/config'
+import { assertAuthBootConfig } from './common/config/auth-boot'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { AppLogger } from './common/logging/app-logger.service'

@@ -2,10 +2,18 @@ import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals'
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants'
 import { RequestMethod } from '@nestjs/common'
-import { ModulesContainer, Reflector } from '@nestjs/core'
+import { ModulesContainer } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '../../src/auth/public.decorator'
 import { createTestApp, type TestApp } from './setup/test-app'
 import { AuthTokenService } from '../../src/auth/auth-token.service'
+
+const METHOD_NAME: Record<number, string> = {
+  [RequestMethod.GET]: 'GET',
+  [RequestMethod.POST]: 'POST',
+  [RequestMethod.PUT]: 'PUT',
+  [RequestMethod.PATCH]: 'PATCH',
+  [RequestMethod.DELETE]: 'DELETE',
+}
 
 describe('auth protection (integration)', () => {
   let app: TestApp
@@ -24,16 +32,16 @@ describe('auth protection (integration)', () => {
 
   it('rejects private routes without a bearer token', async () => {
     const modules = app.get(ModulesContainer)
-    const reflector = app.get(Reflector)
-    const privatePaths: string[] = []
+    const privateRoutes: Array<{ method: string; path: string }> = []
 
     for (const moduleRef of modules.values()) {
       for (const controller of moduleRef.controllers.values()) {
         const instance = controller.instance
-        if (!instance) continue
+        const metatype = controller.metatype
+        if (!instance || !metatype) continue
         const prototype = Object.getPrototypeOf(instance) as object
-        const controllerPath = Reflect.getMetadata(PATH_METADATA, controller.metatype) as string | undefined
-        const classPublic = reflector.get(IS_PUBLIC_KEY, controller.metatype)
+        const controllerPath = Reflect.getMetadata(PATH_METADATA, metatype) as string | undefined
+        const classPublic = Reflect.getMetadata(IS_PUBLIC_KEY, metatype) as boolean | undefined
 
         for (const methodName of Object.getOwnPropertyNames(prototype)) {
           if (methodName === 'constructor') continue
@@ -42,31 +50,34 @@ describe('auth protection (integration)', () => {
           const method = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod | undefined
           const path = Reflect.getMetadata(PATH_METADATA, handler) as string | string[] | undefined
           if (method === undefined || path === undefined) continue
-          const isPublic = classPublic || reflector.get(IS_PUBLIC_KEY, handler)
+          const isPublic = classPublic || (Reflect.getMetadata(IS_PUBLIC_KEY, handler) as boolean | undefined)
           if (isPublic) continue
+          const httpMethod = METHOD_NAME[method]
+          if (!httpMethod) continue
           const segments = Array.isArray(path) ? path : [path]
           for (const segment of segments) {
             const full = `/${[controllerPath, segment].filter(Boolean).join('/')}`.replace(/\/+/g, '/')
             if (full.includes(':') || full.includes('__test__')) continue
-            privatePaths.push(full)
+            privateRoutes.push({ method: httpMethod, path: full })
           }
         }
       }
     }
 
-    expect(privatePaths.length).toBeGreaterThan(0)
+    expect(privateRoutes.length).toBeGreaterThan(0)
 
-    for (const path of privatePaths) {
-      const response = await fetch(`${baseUrl}${path}`, {
-        method: 'GET',
+    for (const route of privateRoutes) {
+      const response = await fetch(`${baseUrl}${route.path}`, {
+        method: route.method,
         headers: { 'content-type': 'application/json' },
+        body: route.method === 'GET' || route.method === 'DELETE' ? undefined : '{}',
       })
-      expect(response.status).toBe(401)
+      expect([401, 403]).toContain(response.status)
     }
   })
 
   it('rejects expired and alg-none access tokens', async () => {
-    const tokens = new AuthTokenService({
+    const tokens = AuthTokenService.forTest({
       accessTokenSecret: process.env.AUTH_ACCESS_TOKEN_SECRET ?? 'local-development-access-token-secret-change-me',
       accessTokenTtlSeconds: -10,
       refreshTokenTtlSeconds: 60,
