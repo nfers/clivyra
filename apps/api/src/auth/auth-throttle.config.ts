@@ -8,4 +8,6 @@ export const AUTH_THROTTLE = {
   switchTenant: { default: { limit: 10, ttl: 60_000 } },
   passwordResetRequest: { default: { limit: 3, ttl: 900_000 } },
   passwordResetConfirm: { default: { limit: 5, ttl: 900_000 } },
+  invitationPreview: { default: { limit: 30, ttl: 60_000 } },
+  invitationAccept: { default: { limit: 20, ttl: 60_000 } },
 } as const

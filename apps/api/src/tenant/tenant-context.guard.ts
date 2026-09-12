@@ -1,7 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
 import type { Request } from 'express'
+import { IS_PUBLIC_KEY } from '../auth/public.decorator'
 import { AppLogger } from '../common/logging/app-logger.service'
 import { RequestContextStorage } from '../common/request-context/request-context.storage'
+import { IS_NO_TENANT_KEY } from './no-tenant.decorator'
 import { TenantContextStorage } from './tenant-context.storage'
 import type { RequestWithTenantContext } from './tenant-context.types'
 import { TenantMembershipRepository } from './tenant-membership.repository'
@@ -10,10 +13,35 @@ import { TenantMembershipRepository } from './tenant-membership.repository'
 export class TenantContextGuard implements CanActivate {
   private readonly logger = new AppLogger()
 
-  constructor(private readonly memberships: TenantMembershipRepository) {}
+  constructor(
+    private readonly memberships: TenantMembershipRepository,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ])
+    const isNoTenant = this.reflector.getAllAndOverride<boolean>(IS_NO_TENANT_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ])
+
     const request = context.switchToHttp().getRequest<Request & RequestWithTenantContext>()
+
+    if (isNoTenant) {
+      return true
+    }
+
+    if (isPublic) {
+      // Global Public short-circuit. Local @UseGuards(TenantContextGuard) on a @Public
+      // test harness may still inject a principal — hydrate when present.
+      if (!request.user?.userId || !request.user?.currentTenantId) {
+        return true
+      }
+    }
+
     const principal = request.user
 
     if (!principal?.userId || !principal.currentTenantId) {

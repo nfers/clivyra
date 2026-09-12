@@ -1,4 +1,7 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common'
+import { Reflector } from '@nestjs/core'
+import { IS_PUBLIC_KEY } from '../auth/public.decorator'
+import { IS_NO_TENANT_KEY } from './no-tenant.decorator'
 import { TenantContextGuard } from './tenant-context.guard'
 import type { RequestWithTenantContext } from './tenant-context.types'
 import type { TenantMembershipRepository } from './tenant-membership.repository'
@@ -8,7 +11,19 @@ function httpContext(request: RequestWithTenantContext & Record<string, unknown>
     switchToHttp: () => ({
       getRequest: () => request,
     }),
-  } as ExecutionContext
+    getHandler: () => function handler() {},
+    getClass: () => class TestController {},
+  } as unknown as ExecutionContext
+}
+
+function createGuard(
+  memberships: Pick<TenantMembershipRepository, 'findActiveMembership'>,
+  overrides: Partial<Record<string, boolean>> = {},
+) {
+  const reflector = {
+    getAllAndOverride: jest.fn((key: string) => overrides[key]),
+  } as unknown as Reflector
+  return new TenantContextGuard(memberships as TenantMembershipRepository, reflector)
 }
 
 describe('TenantContextGuard', () => {
@@ -25,7 +40,7 @@ describe('TenantContextGuard', () => {
         user: { passwordChangedAt: null, sessionsInvalidatedAt: null },
       }),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
-    const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
+    const guard = createGuard(memberships)
     const request: RequestWithTenantContext & Record<string, unknown> = {
       user: { userId, currentTenantId: tenantId },
       body: { tenantId: 'tenant-b' },
@@ -42,7 +57,6 @@ describe('TenantContextGuard', () => {
       membershipId: 'membership-1',
       role: 'OWNER',
     })
-    // ALS is best-effort without request middleware; request.tenantContext is authoritative here.
     expect(request.tenantContext?.tenantId).toBe(tenantId)
   })
 
@@ -56,7 +70,7 @@ describe('TenantContextGuard', () => {
         user: { passwordChangedAt: null, sessionsInvalidatedAt: null },
       }),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
-    const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
+    const guard = createGuard(memberships)
 
     await guard.canActivate(
       httpContext({
@@ -76,7 +90,7 @@ describe('TenantContextGuard', () => {
     const memberships = {
       findActiveMembership: jest.fn(),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
-    const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
+    const guard = createGuard(memberships)
 
     await expect(guard.canActivate(httpContext({ body: { tenantId } }))).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -88,10 +102,52 @@ describe('TenantContextGuard', () => {
     const memberships = {
       findActiveMembership: jest.fn().mockResolvedValue(null),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
-    const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
+    const guard = createGuard(memberships)
 
     await expect(
       guard.canActivate(httpContext({ user: { userId, currentTenantId: tenantId } })),
     ).rejects.toBeInstanceOf(UnauthorizedException)
+  })
+
+  it('skips membership resolution for @Public routes without a principal', async () => {
+    const memberships = {
+      findActiveMembership: jest.fn(),
+    } as Pick<TenantMembershipRepository, 'findActiveMembership'>
+    const guard = createGuard(memberships, { [IS_PUBLIC_KEY]: true })
+
+    await expect(guard.canActivate(httpContext({}))).resolves.toBe(true)
+    expect(memberships.findActiveMembership).not.toHaveBeenCalled()
+  })
+
+  it('hydrates tenant context for @Public routes when a principal is already present', async () => {
+    const memberships = {
+      findActiveMembership: jest.fn().mockResolvedValue({
+        id: 'membership-1',
+        userId,
+        tenantId,
+        role: 'OWNER',
+        user: { passwordChangedAt: null, sessionsInvalidatedAt: null },
+      }),
+    } as Pick<TenantMembershipRepository, 'findActiveMembership'>
+    const guard = createGuard(memberships, { [IS_PUBLIC_KEY]: true })
+    const request: RequestWithTenantContext & Record<string, unknown> = {
+      user: { userId, currentTenantId: tenantId },
+    }
+
+    await expect(guard.canActivate(httpContext(request))).resolves.toBe(true)
+    expect(memberships.findActiveMembership).toHaveBeenCalledWith(userId, tenantId)
+    expect(request.tenantContext?.tenantId).toBe(tenantId)
+  })
+
+  it('skips membership resolution for @NoTenant routes', async () => {
+    const memberships = {
+      findActiveMembership: jest.fn(),
+    } as Pick<TenantMembershipRepository, 'findActiveMembership'>
+    const guard = createGuard(memberships, { [IS_NO_TENANT_KEY]: true })
+
+    await expect(
+      guard.canActivate(httpContext({ user: { userId, currentTenantId: tenantId } })),
+    ).resolves.toBe(true)
+    expect(memberships.findActiveMembership).not.toHaveBeenCalled()
   })
 })

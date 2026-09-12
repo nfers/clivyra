@@ -448,22 +448,24 @@ export class AuthService {
     dto: SwitchTenantDto,
     request: RequestWithAuth,
   ): Promise<AuthSessionResponse> {
-    const membership = await this.prisma.membership.findFirst({
-      where: {
-        userId,
-        tenantId: dto.tenantId,
-        isActive: true,
-        tenant: { isActive: true },
-        user: { isActive: true },
-      },
-      select: {
-        id: true,
-        role: true,
-        tenantId: true,
-        tenant: { select: { id: true, slug: true, name: true } },
-        user: { select: { id: true, email: true, name: true } },
-      },
-    })
+    const membership = await this.prisma.bypassTenant('auth-switch-tenant-lookup', () =>
+      this.prisma.membership.findFirst({
+        where: {
+          userId,
+          tenantId: dto.tenantId, // tenant-boundary: allow switch-tenant target — membership revalidated server-side
+          isActive: true,
+          tenant: { isActive: true },
+          user: { isActive: true },
+        },
+        select: {
+          id: true,
+          role: true,
+          tenantId: true,
+          tenant: { select: { id: true, slug: true, name: true } },
+          user: { select: { id: true, email: true, name: true } },
+        },
+      }),
+    )
 
     if (!membership) {
       throw new NotFoundException()
@@ -573,6 +575,34 @@ export class AuthService {
     await this.prisma.bypassTenant('auth-revoke-family', () =>
       this.prisma.refreshSession.updateMany({
         where: { userId, familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: reason },
+      }),
+    )
+  }
+
+  /** Issues a session for an already-validated membership (e.g. invitation accept). */
+  issueSession(input: {
+    userId: string
+    tenantId: string
+    tenantSlug: string
+    tenantName: string
+    membershipId: string
+    role: MembershipRole
+    email: string
+    name: string
+    request: RequestWithAuth
+    client?: SessionClientKind
+  }): Promise<AuthSessionResponse> {
+    return this.createSessionResponse({
+      ...input,
+      client: input.client ?? resolveClientKind(input.request.headers),
+    })
+  }
+
+  async revokeSessionsForUserInTenant(userId: string, tenantId: string, reason: string): Promise<void> {
+    await this.prisma.bypassTenant('auth-revoke-tenant-sessions', () =>
+      this.prisma.refreshSession.updateMany({
+        where: { userId, tenantId, revokedAt: null },
         data: { revokedAt: new Date(), revokedReason: reason },
       }),
     )

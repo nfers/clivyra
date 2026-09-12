@@ -18,3 +18,20 @@ export type {
   TenantSelectionOption,
   TenantSelectionRequiredResponse,
 } from './auth'
+export {
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  ROLE_RANK,
+  ROLES,
+  canAssignRole,
+  hasAnyPermission,
+  hasEveryPermission,
+  hasPermission,
+  rolePermissions,
+} from './rbac'
+export type { Permission } from './rbac'
+
+export interface AuthPermissionsResponse {
+  readonly role: import('./tenant').Role
+  readonly permissions: readonly import('./rbac').Permission[]
+}

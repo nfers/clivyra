@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { MeResponse } from '@clivyra/types'
+import { Can } from '../../lib/session/SessionProvider'
 
 export function AppHeader({ session }: { session: MeResponse }) {
   const router = useRouter()
@@ -36,6 +38,12 @@ export function AppHeader({ session }: { session: MeResponse }) {
         <p className="eyebrow">Clivyra</p>
         <h1>{session.tenant.name}</h1>
         <p className="auth-lead">{session.user.name}</p>
+        <nav className="app-nav" aria-label="Principal">
+          <Link href="/app">Início</Link>
+          <Can permission="users:read">
+            <Link href="/app/configuracoes/usuarios">Usuários</Link>
+          </Can>
+        </nav>
       </div>
       <div className="app-header-actions">
         {session.memberships.length > 1 ? (

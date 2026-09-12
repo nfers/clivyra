@@ -7,12 +7,14 @@ import {
   Param,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common'
 import { Throttle } from '@nestjs/throttler'
-import type { AuthenticatedPrincipal } from '@clivyra/types'
+import type { AuthenticatedPrincipal, AuthPermissionsResponse, TenantContext } from '@clivyra/types'
+import { rolePermissions } from '@clivyra/types'
 import type { Request } from 'express'
-import { TenantContextGuard } from '../tenant/tenant-context.guard'
+import { RequirePermissions } from '../rbac/permissions.decorator'
+import { CurrentTenant } from '../tenant/tenant-context.decorator'
+import { NoTenant } from '../tenant/no-tenant.decorator'
 import { AUTH_THROTTLE } from './auth-throttle.config'
 import { AuthService } from './auth.service'
 import type { RequestWithAuth } from './auth.types'
@@ -68,18 +70,18 @@ export class AuthController {
     await this.auth.logout(dto)
   }
 
+  @NoTenant()
   @Post('logout-all')
   @HttpCode(204)
   @Throttle(AUTH_THROTTLE.logoutAll)
-  @UseGuards(TenantContextGuard)
   async logoutAll(@CurrentUser() user: AuthenticatedPrincipal) {
     await this.auth.logoutAll(user.userId)
   }
 
+  @NoTenant()
   @Post('switch-tenant')
   @HttpCode(200)
   @Throttle(AUTH_THROTTLE.switchTenant)
-  @UseGuards(TenantContextGuard)
   switchTenant(
     @CurrentUser() user: AuthenticatedPrincipal,
     @Body() dto: SwitchTenantDto,
@@ -88,23 +90,33 @@ export class AuthController {
     return this.auth.switchTenant(user.userId, user.sessionId, dto, request)
   }
 
+  @NoTenant()
   @Get('me')
-  @UseGuards(TenantContextGuard)
   me(@CurrentUser() user: AuthenticatedPrincipal) {
     return this.auth.me(user.userId, user.currentTenantId)
   }
 
+  @NoTenant()
   @Get('sessions')
-  @UseGuards(TenantContextGuard)
   sessions(@CurrentUser() user: AuthenticatedPrincipal) {
     return this.auth.listSessions(user.userId, user.sessionId)
   }
 
+  @NoTenant()
   @Delete('sessions/:id')
   @HttpCode(204)
-  @UseGuards(TenantContextGuard)
   async revokeSession(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
     await this.auth.revokeSession(user.userId, id)
+  }
+
+  /** Any authenticated tenant role may read their own permission set. */
+  @Get('permissions')
+  @RequirePermissions()
+  permissions(@CurrentTenant() tenant: TenantContext): AuthPermissionsResponse {
+    return {
+      role: tenant.role,
+      permissions: rolePermissions(tenant.role),
+    }
   }
 
   @Public()
