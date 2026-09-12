@@ -48,7 +48,9 @@ Permissions (P0):
 
 Finance and clinical-record are independent. D4: `ADMIN` keeps clinical-record access in P0.
 
-`OWNER` and `ADMIN` currently share the full P0 catalog. CLI-16 will add `tenant:manage` as OWNER-only.
+`OWNER` has the full catalog including `tenant:manage` (CLI-16; OWNER-only).
+`ADMIN` matches OWNER except `tenant:manage`.
+CLI-16 also adds `professionals:read|write|self`.
 
 Helpers: `hasPermission`, `hasEveryPermission`, `canAssignRole`, `rolePermissions`.
 

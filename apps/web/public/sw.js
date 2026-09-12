@@ -14,7 +14,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
 
   const url = new URL(event.request.url)
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/app') || url.pathname.startsWith('/login')) {
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/app') || url.pathname.startsWith('/login') || url.pathname.startsWith('/storage/') || url.pathname.startsWith('/onboarding')) {
     return
   }
 

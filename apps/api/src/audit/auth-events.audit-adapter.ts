@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import { AppLogger } from '../common/logging/app-logger.service'
-import type { AuthEventPayload, AuthEventsPort } from '../auth/auth-events.port'
+import {
+  notifyAuthEventHandlers,
+  type AuthEventPayload,
+  type AuthEventsPort,
+} from '../auth/auth-events.port'
 import { TenantContextStorage } from '../tenant/tenant-context.storage'
 import { AuditService } from './audit.service'
 import { maskEmail } from './audit-sanitizer'
@@ -61,6 +65,8 @@ export class AuthEventsAuditAdapter implements AuthEventsPort {
       metric: event,
       ...sanitizePayloadForLog(payload),
     })
+
+    notifyAuthEventHandlers(event, payload)
 
     if (payload.persist === false) return
 

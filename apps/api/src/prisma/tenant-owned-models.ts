@@ -1,4 +1,15 @@
-export const TENANT_OWNED_MODELS = ['Membership', 'RefreshSession', 'Invitation', 'AuditLog'] as const
+export const TENANT_OWNED_MODELS = [
+  'Membership',
+  'RefreshSession',
+  'Invitation',
+  'AuditLog',
+  'TenantSettings',
+  'Professional',
+  'Service',
+  'ProfessionalService',
+  'Room',
+  'WorkingHours',
+] as const
 
 export const GLOBAL_MODELS = ['SystemMetadata', 'User', 'Tenant', 'PasswordResetToken'] as const
 

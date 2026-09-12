@@ -44,6 +44,29 @@ export type {
   AuditOutcome,
 } from './audit'
 
+export {
+  COUNCIL_TYPES,
+  DOCUMENT_TYPES,
+  PROFESSIONAL_STATUSES,
+  SPECIALTIES,
+  WEEKDAYS,
+} from './studio'
+export type {
+  CouncilType,
+  EffectiveWorkingHoursView,
+  OnboardingStatusView,
+  ProfessionalListItemView,
+  ProfessionalStatus,
+  ProfessionalView,
+  RoomView,
+  ServiceView,
+  Specialty,
+  StudioDocumentType,
+  TenantSettingsView,
+  WorkingHoursEntryView,
+  WorkingHoursSetView,
+} from './studio'
+
 export interface AuthPermissionsResponse {
   readonly role: import('./tenant').Role
   readonly permissions: readonly import('./rbac').Permission[]

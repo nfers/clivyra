@@ -11,6 +11,8 @@ import { MailerModule } from './mailer/mailer.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { RbacGuard } from './rbac/rbac.guard'
 import { RbacModule } from './rbac/rbac.module'
+import { StorageModule } from './storage/storage.module'
+import { StudioModule } from './studio/studio.module'
 import { TenantContextGuard } from './tenant/tenant-context.guard'
 import { TenantModule } from './tenant/tenant.module'
 import { TestMembershipsController } from './test-support/test-memberships.controller'
@@ -31,6 +33,8 @@ const testControllers: Type<unknown>[] =
     UsersModule,
     RbacModule,
     MailerModule,
+    StorageModule,
+    StudioModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60_000,
