@@ -9,10 +9,10 @@ async function main() {
     update: { value: '0.1.0' },
   })
 
-  const seedTenantSlug = process.env.SEED_TENANT_SLUG ?? 'clivyra-demo'
-  const seedTenantName = process.env.SEED_TENANT_NAME ?? 'Clivyra Demo'
-  const seedAdminEmail = (process.env.SEED_ADMIN_EMAIL ?? 'admin@clivyra.local').trim().toLowerCase()
-  const seedAdminName = process.env.SEED_ADMIN_NAME ?? 'Clivyra Admin'
+  const seedTenantSlug = process.env.SEED_TENANT_SLUG ?? 'studio-vega'
+  const seedTenantName = process.env.SEED_TENANT_NAME ?? 'Studio Vega'
+  const seedAdminEmail = (process.env.SEED_ADMIN_EMAIL ?? 'owner@studio-vega.test').trim().toLowerCase()
+  const seedAdminName = process.env.SEED_ADMIN_NAME ?? 'Owner Vega'
   const seedAdminPasswordHash = process.env.SEED_ADMIN_PASSWORD_HASH
 
   const tenant = await prisma.tenant.upsert({

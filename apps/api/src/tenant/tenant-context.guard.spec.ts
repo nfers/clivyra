@@ -23,6 +23,7 @@ describe('TenantContextGuard', () => {
         userId,
         tenantId,
         role: 'OWNER',
+        user: { passwordChangedAt: null, sessionsInvalidatedAt: null },
       }),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
     const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
@@ -52,6 +53,7 @@ describe('TenantContextGuard', () => {
         userId,
         tenantId,
         role: 'OWNER',
+        user: { passwordChangedAt: null, sessionsInvalidatedAt: null },
       }),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
     const guard = new TenantContextGuard(memberships as TenantMembershipRepository)

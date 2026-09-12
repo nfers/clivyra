@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 
 interface AuthTokenConfig {
   accessTokenSecret: string
@@ -16,11 +16,12 @@ interface AccessTokenInput {
 
 export interface AccessTokenPayload {
   sub: string
-  tenantId: string
+  tid: string
   sid: string
-  type: 'access'
+  typ: 'access'
   iat: number
   exp: number
+  jti: string
 }
 
 @Injectable()
@@ -49,32 +50,52 @@ export class AuthTokenService {
     }
   }
 
-  signAccessToken(input: AccessTokenInput): string {
+  get accessTokenTtlSeconds(): number {
+    return this.config.accessTokenTtlSeconds
+  }
+
+  signAccessToken(input: AccessTokenInput): { token: string; expiresAt: Date; iat: number } {
     const now = Math.floor(Date.now() / 1000)
     const payload: AccessTokenPayload = {
       sub: input.userId,
-      tenantId: input.tenantId,
+      tid: input.tenantId,
       sid: input.sessionId,
-      type: 'access',
+      typ: 'access',
       iat: now,
       exp: now + this.config.accessTokenTtlSeconds,
+      jti: randomUUID(),
     }
 
     const header = this.encodeJson({ alg: 'HS256', typ: 'JWT' })
     const body = this.encodeJson(payload)
     const signature = this.sign(`${header}.${body}`)
 
-    return `${header}.${body}.${signature}`
+    return {
+      token: `${header}.${body}.${signature}`,
+      expiresAt: new Date(payload.exp * 1000),
+      iat: payload.iat,
+    }
   }
 
   verifyAccessToken(token: string): AccessTokenPayload {
-    const [header, body, signature] = token.split('.')
+    const [headerPart, body, signature] = token.split('.')
 
-    if (!header || !body || !signature) {
+    if (!headerPart || !body || !signature) {
       throw new UnauthorizedException('Invalid access token')
     }
 
-    const expected = this.sign(`${header}.${body}`)
+    let header: { alg?: string; typ?: string }
+    try {
+      header = this.decodeJson<{ alg?: string; typ?: string }>(headerPart)
+    } catch {
+      throw new UnauthorizedException('Invalid access token')
+    }
+
+    if (header.alg !== 'HS256') {
+      throw new UnauthorizedException('Invalid access token')
+    }
+
+    const expected = this.sign(`${headerPart}.${body}`)
 
     if (!this.safeEqual(signature, expected)) {
       throw new UnauthorizedException('Invalid access token')
@@ -83,7 +104,7 @@ export class AuthTokenService {
     const payload = this.decodeJson<AccessTokenPayload>(body)
     const now = Math.floor(Date.now() / 1000)
 
-    if (payload.type !== 'access' || payload.exp <= now || !payload.sub || !payload.tenantId || !payload.sid) {
+    if (payload.typ !== 'access' || payload.exp <= now || !payload.sub || !payload.tid || !payload.sid) {
       throw new UnauthorizedException('Invalid access token')
     }
 

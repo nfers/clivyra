@@ -37,6 +37,17 @@ export class TenantContextGuard implements CanActivate {
       throw new UnauthorizedException('Authenticated tenant context is required')
     }
 
+    if (typeof principal.tokenIat === 'number') {
+      const invalidatedAt = membership.user.sessionsInvalidatedAt ?? membership.user.passwordChangedAt
+      if (invalidatedAt && principal.tokenIat * 1000 < invalidatedAt.getTime()) {
+        this.logger.warn('tenant_context.denied', {
+          metric: 'tenant_context.denied',
+          reason: 'session_invalidated',
+        })
+        throw new UnauthorizedException('Authentication is required')
+      }
+    }
+
     const tenantContext = {
       userId: membership.userId,
       tenantId: membership.tenantId,

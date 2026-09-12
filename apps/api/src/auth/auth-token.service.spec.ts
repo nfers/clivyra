@@ -10,7 +10,7 @@ describe('AuthTokenService', () => {
   })
 
   it('signs and verifies access tokens with tenant and session context', () => {
-    const token = service.signAccessToken({
+    const { token } = service.signAccessToken({
       userId: 'user-1',
       tenantId: 'tenant-a',
       sessionId: 'session-1',
@@ -19,15 +19,16 @@ describe('AuthTokenService', () => {
     expect(service.verifyAccessToken(token)).toEqual(
       expect.objectContaining({
         sub: 'user-1',
-        tenantId: 'tenant-a',
+        tid: 'tenant-a',
         sid: 'session-1',
-        type: 'access',
+        typ: 'access',
+        jti: expect.any(String),
       }),
     )
   })
 
   it('rejects tokens signed by another secret', () => {
-    const token = service.signAccessToken({
+    const { token } = service.signAccessToken({
       userId: 'user-1',
       tenantId: 'tenant-a',
       sessionId: 'session-1',
@@ -40,5 +41,22 @@ describe('AuthTokenService', () => {
     })
 
     expect(() => otherService.verifyAccessToken(token)).toThrow(UnauthorizedException)
+  })
+
+  it('rejects alg none tokens', () => {
+    const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url')
+    const body = Buffer.from(
+      JSON.stringify({
+        sub: 'user-1',
+        tid: 'tenant-a',
+        sid: 'session-1',
+        typ: 'access',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 900,
+        jti: 'x',
+      }),
+    ).toString('base64url')
+
+    expect(() => service.verifyAccessToken(`${header}.${body}.`)).toThrow(UnauthorizedException)
   })
 })

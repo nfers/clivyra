@@ -23,12 +23,12 @@ model SystemMetadata {
 }
 
 model Tenant {
-  id          String       @id @default(cuid())
-  slug        String       @unique
+  id          String           @id @default(cuid())
+  slug        String           @unique
   name        String
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
   memberships Membership[]
   sessions    RefreshSession[]
 
@@ -37,16 +37,22 @@ model Tenant {
 
 /// Entidade GLOBAL (não tenant-owned). Uma pessoa pode pertencer a vários tenants via Membership.
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique // normalizado lower-case na aplicação
-  name         String
-  passwordHash String? // preenchido em CLI-12
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  memberships  Membership[]
-  sessions     RefreshSession[]
-  resetTokens  PasswordResetToken[]
+  id                     String              @id @default(cuid())
+  email                  String              @unique // normalizado lower-case na aplicação
+  name                   String
+  passwordHash           String?
+  passwordChangedAt      DateTime?
+  emailVerifiedAt        DateTime?
+  lastLoginAt            DateTime?
+  failedLoginCount       Int                 @default(0)
+  lockedUntil            DateTime?
+  sessionsInvalidatedAt  DateTime?
+  isActive               Boolean             @default(true)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  memberships            Membership[]
+  sessions               RefreshSession[]
+  resetTokens            PasswordResetToken[]
 
   @@index([isActive])
 }
@@ -69,19 +75,25 @@ model Membership {
 }
 
 model RefreshSession {
-  id        String    @id @default(cuid())
-  userId    String
-  tenantId  String
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  tenantId      String
+  userId        String
+  familyId      String
+  tokenHash     String    @unique
+  replacedById  String?   @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  lastUsedAt    DateTime?
+  userAgent     String?
+  ipHash        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, tenantId])
-  @@index([tenantId, revokedAt])
+  @@index([tenantId, userId, revokedAt])
+  @@index([userId, familyId])
   @@index([expiresAt])
 }
 

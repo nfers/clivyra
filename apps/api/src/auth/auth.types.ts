@@ -1,22 +1,21 @@
-import type { TenantContext } from '../tenant/tenant-context.types'
+import type { AuthSessionResponse } from '@clivyra/types'
+import type { AuthenticatedPrincipal } from '@clivyra/types'
 
-export interface AuthenticatedUser {
-  id: string
-  currentTenantId: string
-  sessionId: string
-}
+export type { AuthenticatedPrincipal }
 
 export interface RequestWithAuth {
-  user?: AuthenticatedUser
+  user?: AuthenticatedPrincipal
+  headers: Record<string, string | string[] | undefined>
+  ip?: string
+  socket?: { remoteAddress?: string }
 }
 
-export interface AuthenticatedSessionResponse {
-  accessToken: string
-  refreshToken: string
-  user: {
-    id: string
-    email: string
-    name: string
-  }
-  tenantContext: TenantContext
+export type SessionClientKind = 'api' | 'web'
+
+export function resolveClientKind(headers: RequestWithAuth['headers']): SessionClientKind {
+  const raw = headers['x-client']
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value?.toLowerCase() === 'api' ? 'api' : 'web'
 }
+
+export type AuthenticatedSessionResponse = AuthSessionResponse

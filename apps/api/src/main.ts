@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
+import { assertAuthBootConfig } from '@clivyra/config'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { AppLogger } from './common/logging/app-logger.service'
@@ -12,6 +13,7 @@ function assertSafeBootEnvironment(): void {
   if (process.env.NODE_ENV === 'test' && !process.env.JEST_WORKER_ID) {
     throw new Error('Refusing to listen when NODE_ENV=test outside Jest (missing JEST_WORKER_ID)')
   }
+  assertAuthBootConfig()
 }
 
 async function bootstrap() {
@@ -30,7 +32,11 @@ async function bootstrap() {
   app.use(new RequestContextMiddleware().use.bind(new RequestContextMiddleware()))
 
   app.use(helmet())
-  app.enableCors({ origin: webOrigin, methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE'] })
+  app.enableCors({
+    origin: webOrigin,
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    credentials: true,
+  })
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }))
 
   await app.listen(port, '0.0.0.0')

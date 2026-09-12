@@ -1,54 +1,122 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common'
+import { Throttle } from '@nestjs/throttler'
+import type { AuthenticatedPrincipal } from '@clivyra/types'
 import type { Request } from 'express'
-import { AuthAccessGuard } from './auth-access.guard'
+import { TenantContextGuard } from '../tenant/tenant-context.guard'
+import { AUTH_THROTTLE } from './auth-throttle.config'
 import { AuthService } from './auth.service'
 import type { RequestWithAuth } from './auth.types'
+import { CurrentUser } from './current-user.decorator'
 import {
   LoginDto,
   LogoutDto,
   PasswordResetConfirmDto,
   PasswordResetRequestDto,
   RefreshDto,
-  RegisterDto,
+  SignupDto,
+  SwitchTenantDto,
 } from './dto/auth.dto'
+import { PasswordResetService } from './password-reset.service'
+import { Public } from './public.decorator'
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly passwordReset: PasswordResetService,
+  ) {}
 
-  @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto)
+  @Public()
+  @Post('signup')
+  @HttpCode(201)
+  @Throttle(AUTH_THROTTLE.signup)
+  signup(@Body() dto: SignupDto, @Req() request: Request & RequestWithAuth) {
+    return this.auth.signup(dto, request)
   }
 
+  @Public()
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto)
+  @Throttle(AUTH_THROTTLE.login)
+  login(@Body() dto: LoginDto, @Req() request: Request & RequestWithAuth) {
+    return this.auth.login(dto, request)
   }
 
+  @Public()
   @Post('refresh')
-  refresh(@Body() dto: RefreshDto) {
-    return this.auth.refresh(dto)
+  @Throttle(AUTH_THROTTLE.refresh)
+  refresh(@Body() dto: RefreshDto, @Req() request: Request & RequestWithAuth) {
+    return this.auth.refresh(dto, request)
   }
 
+  @Public()
   @Post('logout')
-  logout(@Body() dto: LogoutDto) {
-    return this.auth.logout(dto)
+  @HttpCode(204)
+  @Throttle(AUTH_THROTTLE.logout)
+  async logout(@Body() dto: LogoutDto) {
+    await this.auth.logout(dto)
   }
 
-  @Post('password-reset/request')
-  requestPasswordReset(@Body() dto: PasswordResetRequestDto) {
-    return this.auth.requestPasswordReset(dto)
+  @Post('logout-all')
+  @HttpCode(204)
+  @Throttle(AUTH_THROTTLE.logoutAll)
+  @UseGuards(TenantContextGuard)
+  async logoutAll(@CurrentUser() user: AuthenticatedPrincipal) {
+    await this.auth.logoutAll(user.userId)
   }
 
-  @Post('password-reset/confirm')
-  confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
-    return this.auth.confirmPasswordReset(dto)
+  @Post('switch-tenant')
+  @Throttle(AUTH_THROTTLE.switchTenant)
+  @UseGuards(TenantContextGuard)
+  switchTenant(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Body() dto: SwitchTenantDto,
+    @Req() request: Request & RequestWithAuth,
+  ) {
+    return this.auth.switchTenant(user.userId, user.sessionId, dto, request)
   }
 
   @Get('me')
-  @UseGuards(AuthAccessGuard)
-  me(@Req() request: Request & RequestWithAuth) {
-    return { userId: request.user?.id, tenantId: request.user?.currentTenantId, sessionId: request.user?.sessionId }
+  @UseGuards(TenantContextGuard)
+  me(@CurrentUser() user: AuthenticatedPrincipal) {
+    return this.auth.me(user.userId, user.currentTenantId)
+  }
+
+  @Get('sessions')
+  @UseGuards(TenantContextGuard)
+  sessions(@CurrentUser() user: AuthenticatedPrincipal) {
+    return this.auth.listSessions(user.userId, user.sessionId)
+  }
+
+  @Delete('sessions/:id')
+  @HttpCode(204)
+  @UseGuards(TenantContextGuard)
+  async revokeSession(@CurrentUser() user: AuthenticatedPrincipal, @Param('id') id: string) {
+    await this.auth.revokeSession(user.userId, id)
+  }
+
+  @Public()
+  @Post('password-reset/request')
+  @HttpCode(202)
+  @Throttle(AUTH_THROTTLE.passwordResetRequest)
+  requestPasswordReset(@Body() dto: PasswordResetRequestDto) {
+    return this.passwordReset.request(dto)
+  }
+
+  @Public()
+  @Post('password-reset/confirm')
+  @HttpCode(204)
+  @Throttle(AUTH_THROTTLE.passwordResetConfirm)
+  async confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
+    await this.passwordReset.confirm(dto)
   }
 }

@@ -1,56 +1,54 @@
-# Auth and session management
+# Auth and session management (CLI-12)
 
-CLI-12 adds the first authentication/session foundation for Clivyra.
+Authentication for professionals and studio admins: strong password hashing, short-lived access JWT, opaque rotatable refresh tokens, logout, password recovery, and route protection on API and web.
+
+## Decisions
+
+| ID | Decision |
+| --- | --- |
+| D1 | Refresh token for web travels in an `httpOnly` cookie set by the Next.js BFF (`/api/session/*`). Non-browser clients opt in with `X-Client: api` to receive the refresh token in the JSON body. |
+| D2 | `AUTH_SELF_SIGNUP_ENABLED=false` by default. Studio signup (`POST /auth/signup`) creates a new tenant + OWNER only when enabled. Joining an existing tenant is invitation-only (CLI-13). |
+| D3 | Passwords use PBKDF2-SHA512 with 210k iterations, random salt, and `AUTH_PASSWORD_PEPPER`. Hash format `pbkdf2$<iter>$<salt>$<hash>` allows future argon2id migration. |
+| D5 | `MailerPort` with `noop` (dev), `test-mailbox` (tests), and `smtp` (HTTP bridge via `SMTP_URL`). |
 
 ## Endpoints
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/refresh`
-- `POST /auth/logout`
-- `POST /auth/password-reset/request`
-- `POST /auth/password-reset/confirm`
-- `GET /auth/me`
+| Method | Path | Auth |
+| --- | --- | --- |
+| `POST` | `/auth/signup` | public (feature flag) |
+| `POST` | `/auth/login` | public |
+| `POST` | `/auth/refresh` | public (refresh token) |
+| `POST` | `/auth/logout` | public (idempotent) |
+| `POST` | `/auth/logout-all` | authenticated |
+| `POST` | `/auth/switch-tenant` | authenticated |
+| `GET` | `/auth/me` | authenticated |
+| `GET` | `/auth/sessions` | authenticated |
+| `DELETE` | `/auth/sessions/:id` | authenticated |
+| `POST` | `/auth/password-reset/request` | public |
+| `POST` | `/auth/password-reset/confirm` | public |
 
-## Passwords
+There is **no** `POST /auth/register` that accepts `tenantSlug` + `role`.
 
-Passwords are hashed with PBKDF2-SHA512, per-password random salt, and an application pepper from `AUTH_PASSWORD_PEPPER`.
+## Tokens
 
-The database must never store plaintext passwords. The seed also avoids creating a default plaintext password.
+- Access token: HS256 JWT, 15 minutes, claims `sub`, `tid`, `sid`, `typ=access`, `iat`, `exp`, `jti`.
+- Refresh token: opaque 32-byte `base64url`, stored only as HMAC. Rotation keeps `familyId`; reuse of a revoked token revokes the whole family (`reuse_detected`).
+- Web cookies: `clivyra_at` (access, path `/`) and `clivyra_rt` (refresh, path `/api/session`).
 
-## Access tokens
+## Protections
 
-Access tokens are HMAC-SHA256 signed and contain:
+- Global `AuthGuard` with `@Public()`; health endpoints are public.
+- Global `ThrottlerGuard` plus per-route `@Throttle` on login, refresh, and password reset.
+- Progressive account lockout via `failedLoginCount` / `lockedUntil`.
+- `AUTH_EXPOSE_RESET_TOKEN` may return the reset token only in `development`; boot fails if it is `true` in production.
+- `passwordChangedAt` / `sessionsInvalidatedAt` compared to access-token `iat` for immediate revocation after reset / logout-all.
 
-- user id
-- active tenant id
-- refresh session id
-- issue time and expiration
+## Web
 
-The API resolves tenant context from the signed token. The frontend must not send `tenantId` as an authorization source.
+- `/login`, `/recuperar-senha`, `/redefinir-senha/[token]`, authenticated shell `/app`
+- `middleware.ts` redirects `/app/*` to login when no session cookies exist
+- Service worker skips caching `/api/` and `/app`
 
-## Refresh tokens
+## Configuration
 
-Refresh tokens are opaque random values. Only their HMAC hash is stored in `RefreshSession`.
-
-Refresh flow rotates tokens:
-
-1. current refresh token is validated
-2. current session is revoked
-3. a new refresh session is created
-4. a new access token and refresh token are returned
-
-Logout revokes the submitted refresh token.
-
-## Password reset
-
-Password reset request always returns a generic `ok` response to avoid user enumeration.
-
-In non-production environments, the reset token is returned in the response so E2E tests can exercise the full flow without an email provider.
-
-Confirming password reset:
-
-- validates the reset token
-- updates the password hash
-- marks the reset token as used
-- revokes active refresh sessions
+See `.env.example` for `AUTH_*`, `MAILER_DRIVER`, and `SMTP_URL`.

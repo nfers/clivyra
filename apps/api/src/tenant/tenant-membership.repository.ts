@@ -20,6 +20,12 @@ export class TenantMembershipRepository {
           userId: true,
           tenantId: true,
           role: true,
+          user: {
+            select: {
+              passwordChangedAt: true,
+              sessionsInvalidatedAt: true,
+            },
+          },
         },
       }),
     )
