@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
   background: #f7faf7;
   color: #17301e;
 }
@@ -17,4 +17,127 @@ body { margin: 0; min-width: 320px; }
 
 h1 { margin: 0; font-size: clamp(1.8rem, 7vw, 3rem); line-height: 1.1; }
 
-h1 + p { margin: 1rem 0 0; color: #3f5645; line-height: 1.6; }
+h1 + p,
+.auth-lead { margin: 1rem 0 0; color: #3f5645; line-height: 1.6; }
+
+.auth-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at top left, #dcfce7 0%, transparent 45%),
+    linear-gradient(180deg, #f0fdf4 0%, #f7faf7 55%, #eef6f0 100%);
+}
+
+.auth-panel {
+  width: min(100%, 26rem);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #bbd3c0;
+  border-radius: 1rem;
+  padding: 1.75rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.auth-form label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.auth-form input,
+.auth-form select,
+.tenant-switch select {
+  width: 100%;
+  border: 1px solid #bbd3c0;
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+  background: #fff;
+}
+
+.auth-form button,
+.ghost-button {
+  margin-top: 0.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: #14532d;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-form button:disabled,
+.ghost-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ghost-button {
+  background: transparent;
+  color: #14532d;
+  border: 1px solid #bbd3c0;
+}
+
+.auth-error {
+  margin: 0.5rem 0 0;
+  color: #991b1b;
+}
+
+.auth-success {
+  margin-top: 1.25rem;
+  color: #166534;
+}
+
+.auth-footer {
+  margin: 1.25rem 0 0;
+}
+
+.auth-footer a {
+  color: #14532d;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  background: #f7faf7;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #bbd3c0;
+  background: #fff;
+}
+
+.app-header h1 {
+  font-size: clamp(1.4rem, 4vw, 2rem);
+}
+
+.app-header-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.tenant-switch {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+}
+
+.app-main {
+  padding: 1.5rem;
+}
+
+.app-home h2 {
+  margin: 0 0 0.75rem;
+}

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common'
 import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator'
 import type { Role } from '@clivyra/types'
+import { Public } from '../auth/public.decorator'
 import { CurrentTenant } from '../tenant/tenant-context.decorator'
 import { TenantContextGuard } from '../tenant/tenant-context.guard'
 import type { TenantContext } from '../tenant/tenant-context.types'
@@ -53,6 +54,7 @@ class UpdateMembershipDto {
  * Registered only when NODE_ENV=test.
  */
 @Controller('__test__/memberships')
+@Public()
 @UseGuards(TestPrincipalGuard, TenantContextGuard)
 export class TestMembershipsController {
   constructor(private readonly prisma: PrismaService) {}

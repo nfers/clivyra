@@ -18,6 +18,7 @@
     "seed": "ts-node ../../prisma/seed.ts"
   },
   "dependencies": {
+    "@clivyra/config": "*",
     "@clivyra/types": "*",
     "@nestjs/common": "^11.2.3",
     "@nestjs/core": "^11.2.3",
