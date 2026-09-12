@@ -51,3 +51,9 @@ Explicit testable rules from `docs/sprint-1/specs/` (source of truth for this re
 36. WorkingHours override replaces studio defaults entirely (no per-day merge).
 37. Nested `serviceIds` must belong to current tenant.
 38. Invitation PROFESSIONAL accept auto-creates Professional DRAFT.
+
+## E2E harness
+
+Playwright `webServer` sobe API+web via `scripts/e2e/start-*.sh`.
+Fixtures sintéticas em `.env.e2e` + `scripts/e2e/seed.ts` (OWNER/ADMIN/PROFESSIONAL/RECEPTION + studio-b).
+Cookies host-only (`AUTH_COOKIE_DOMAIN` vazio) para baseURL `http://127.0.0.1:3000`.

@@ -87,7 +87,7 @@ test.describe('Feature: Perfil profissional e studio (CLI-16)', () => {
 
     // Then: não exibe rótulos/valores típicos de CREFITO/telefone sensível
     // (API já omite; UI não deve inventar)
-    const body = await page.locator('main, body').innerText()
+    const body = await page.getByRole('main').innerText()
     expect(body).not.toMatch(/CREFITO\s+\d{4,}/i)
   })
 })
