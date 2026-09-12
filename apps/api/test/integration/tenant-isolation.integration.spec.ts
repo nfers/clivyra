@@ -17,6 +17,7 @@ describe('tenant isolation (integration)', () => {
     options: {
       principal?: { userId: string; currentTenantId: string }
       body?: unknown
+      requestId?: string
     } = {},
   ): Promise<{ status: number; body: unknown; headers: Headers }> {
     const headers: Record<string, string> = {
@@ -24,6 +25,9 @@ describe('tenant isolation (integration)', () => {
     }
     if (options.principal) {
       headers[TEST_PRINCIPAL_HEADER] = JSON.stringify(options.principal)
+    }
+    if (options.requestId) {
+      headers['x-request-id'] = options.requestId
     }
 
     const response = await fetch(`${baseUrl}${path}`, {
@@ -119,6 +123,25 @@ describe('tenant isolation (integration)', () => {
     expect(count).toBe(0)
   })
 
+  it('rejects update with foreign tenantId in payload and leaves row unchanged', async () => {
+    const before = await prisma.membership.findUniqueOrThrow({
+      where: { id: fixtures.ownerA.membershipId },
+    })
+
+    const response = await request('PATCH', `/__test__/memberships/${fixtures.ownerA.membershipId}`, {
+      principal: { userId: fixtures.ownerA.id, currentTenantId: fixtures.studioA.id },
+      body: { role: 'ADMIN', tenantId: fixtures.studioB.id },
+    })
+
+    expect(response.status).toBe(400)
+    const after = await prisma.membership.findUniqueOrThrow({
+      where: { id: fixtures.ownerA.membershipId },
+    })
+    expect(after.tenantId).toBe(fixtures.studioA.id)
+    expect(after.role).toBe(before.role)
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime())
+  })
+
   it('returns 401 without principal on protected route', async () => {
     const response = await request('GET', '/__test__/memberships')
     expect(response.status).toBe(401)
@@ -149,6 +172,28 @@ describe('tenant isolation (integration)', () => {
     const results = await Promise.all(tasks)
     for (const { useA, response } of results) {
       expect(response.status).toBe(200)
+      const rows = response.body as Array<{ tenantId: string }>
+      const expected = useA ? fixtures.studioA.id : fixtures.studioB.id
+      expect(rows.every((row) => row.tenantId === expected)).toBe(true)
+    }
+  })
+
+  it('does not mix tenants when parallel requests share the same client X-Request-Id', async () => {
+    const sharedClientRequestId = 'shared-client-request-id-01'
+    const tasks = Array.from({ length: 40 }, (_, index) => {
+      const useA = index % 2 === 0
+      return request('GET', '/__test__/memberships', {
+        requestId: sharedClientRequestId,
+        principal: useA
+          ? { userId: fixtures.ownerA.id, currentTenantId: fixtures.studioA.id }
+          : { userId: fixtures.ownerB.id, currentTenantId: fixtures.studioB.id },
+      }).then((response) => ({ useA, response }))
+    })
+
+    const results = await Promise.all(tasks)
+    for (const { useA, response } of results) {
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-request-id')).toBe(sharedClientRequestId)
       const rows = response.body as Array<{ tenantId: string }>
       const expected = useA ? fixtures.studioA.id : fixtures.studioB.id
       expect(rows.every((row) => row.tenantId === expected)).toBe(true)

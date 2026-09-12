@@ -39,10 +39,11 @@ Shared contracts live in `@clivyra/types` (`Role`, `AuthenticatedPrincipal`, `Te
 
 `PrismaService` exposes a Prisma client extended with `tenantScoped`.
 
-Prisma Client Extension hooks can drop Node AsyncLocalStorage across the query engine boundary. Clivyra therefore mirrors tenant and `bypassTenant` state by `requestId` (from `RequestContext`) so mandatory tenant filters remain correct under Nest async guards and concurrent requests.
+Prisma Client Extension hooks can drop Node AsyncLocalStorage across the query engine boundary. Clivyra therefore mirrors tenant and `bypassTenant` state by an **internally generated `scopeId`** (never the client `X-Request-Id`) so mandatory tenant filters remain correct under Nest async guards and concurrent requests. Valid client `X-Request-Id` values are still echoed for correlation.
 
-- Tenant-owned operations inject/require `tenantId` from ALS / requestId bridge.
+- Tenant-owned operations inject/require `tenantId` from ALS / scopeId bridge.
 - `create` / `createMany` overwrite `data.tenantId`; a divergent client value raises `TenantScopeViolationError` (HTTP 400).
+- `update` / `updateMany` / `upsert.update` strip `tenantId` and reject divergent values (`TenantScopeViolationError`).
 - Cross-tenant `update` / `delete` by id become not-found (HTTP 404).
 - Missing ALS context on tenant-owned models raises `TenantContextMissingError` (HTTP 500, treated as a bug).
 - `prisma.bypassTenant(reason, fn)` opts out for seed, membership resolution, and system jobs; each use is logged as `tenant_scope.bypass`.

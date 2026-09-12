@@ -9,12 +9,18 @@ export const REQUEST_ID_HEADER = 'x-request-id'
 export const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{8,128}$/
 const MAX_USER_AGENT_LENGTH = 256
 
-export function resolveRequestId(headerValue: string | string[] | undefined): string {
+/** Correlation id for response headers — never used as Map keys. */
+export function resolveCorrelationId(headerValue: string | string[] | undefined): string {
   const raw = Array.isArray(headerValue) ? headerValue[0] : headerValue
   if (typeof raw === 'string' && REQUEST_ID_PATTERN.test(raw)) {
     return raw
   }
   return randomUUID()
+}
+
+/** @deprecated Use resolveCorrelationId — kept for callers that only need the echo value. */
+export function resolveRequestId(headerValue: string | string[] | undefined): string {
+  return resolveCorrelationId(headerValue)
 }
 
 export function truncateUserAgent(userAgent: string | undefined): string | undefined {
@@ -27,8 +33,10 @@ export function truncateUserAgent(userAgent: string | undefined): string | undef
 @Injectable()
 export class RequestContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
-    const requestId = resolveRequestId(req.headers[REQUEST_ID_HEADER])
+    const scopeId = randomUUID()
+    const requestId = resolveCorrelationId(req.headers[REQUEST_ID_HEADER])
     const context: RequestContext = {
+      scopeId,
       requestId,
       ip: req.ip,
       userAgent: truncateUserAgent(req.headers['user-agent']),
@@ -38,7 +46,7 @@ export class RequestContextMiddleware implements NestMiddleware {
 
     // enterWith (not run) so Nest async guards/handlers stay in the same store.
     RequestContextStorage.enterWith(context)
-    res.on('finish', () => TenantContextStorage.clear(requestId))
+    res.on('finish', () => TenantContextStorage.clear(scopeId))
     next()
   }
 }

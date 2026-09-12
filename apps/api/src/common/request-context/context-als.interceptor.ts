@@ -1,9 +1,10 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
 import type { Request, Response } from 'express'
 import { Observable } from 'rxjs'
 import {
   REQUEST_ID_HEADER,
-  resolveRequestId,
+  resolveCorrelationId,
   truncateUserAgent,
 } from '../request-context/request-context.middleware'
 import { RequestContextStorage } from '../request-context/request-context.storage'
@@ -12,9 +13,8 @@ import { TenantContextStorage } from '../../tenant/tenant-context.storage'
 import type { RequestWithTenantContext } from '../../tenant/tenant-context.types'
 
 /**
- * Binds RequestContext (+ optional TenantContext) in ALS for the Nest handler Observable.
- * Guards run first and may set `request.tenantContext`; this interceptor propagates it into ALS
- * for Prisma tenantScoped and logging.
+ * Re-binds RequestContext (+ optional TenantContext) in ALS for the Nest handler Observable.
+ * Preserves middleware `scopeId` so bridge Maps stay correctly keyed.
  */
 @Injectable()
 export class ContextAlsInterceptor implements NestInterceptor {
@@ -22,23 +22,25 @@ export class ContextAlsInterceptor implements NestInterceptor {
     const http = context.switchToHttp()
     const req = http.getRequest<Request & RequestWithTenantContext>()
     const res = http.getResponse<Response>()
+    const existing = RequestContextStorage.get()
 
+    const scopeId = existing?.scopeId ?? randomUUID()
     const requestId =
-      RequestContextStorage.get()?.requestId ??
+      existing?.requestId ??
       (typeof res.getHeader(REQUEST_ID_HEADER) === 'string'
         ? (res.getHeader(REQUEST_ID_HEADER) as string)
-        : resolveRequestId(req.headers[REQUEST_ID_HEADER]))
+        : resolveCorrelationId(req.headers[REQUEST_ID_HEADER]))
 
     if (!res.getHeader(REQUEST_ID_HEADER)) {
       res.setHeader(REQUEST_ID_HEADER, requestId)
     }
 
     const store: RequestContext = {
+      scopeId,
       requestId,
-      ip: req.ip ?? RequestContextStorage.get()?.ip,
-      userAgent:
-        truncateUserAgent(req.headers['user-agent']) ?? RequestContextStorage.get()?.userAgent,
-      tenantContext: req.tenantContext,
+      ip: existing?.ip ?? req.ip,
+      userAgent: existing?.userAgent ?? truncateUserAgent(req.headers['user-agent']),
+      tenantContext: req.tenantContext ?? existing?.tenantContext,
     }
 
     return new Observable((subscriber) => {

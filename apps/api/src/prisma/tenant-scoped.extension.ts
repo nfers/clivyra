@@ -15,8 +15,8 @@ interface BypassStore {
 }
 
 const bypassStorage = new AsyncLocalStorage<BypassStore>()
-/** requestId-keyed bypass — Prisma query hooks can drop ALS across engine boundaries. */
-const bypassByRequestId = new Map<string, string>()
+/** scopeId-keyed bypass — Prisma query hooks can drop ALS across engine boundaries. */
+const bypassByScopeId = new Map<string, string>()
 const logger = new AppLogger()
 
 type WhereInput = Record<string, unknown>
@@ -42,7 +42,6 @@ const FILTER_OPERATIONS = new Set([
   'count',
   'aggregate',
   'groupBy',
-  'updateMany',
   'deleteMany',
 ])
 
@@ -59,6 +58,12 @@ function andWhere(existing: WhereInput | undefined, tenantId: string): WhereInpu
   return { AND: [existing, tenantFilter] }
 }
 
+function withoutClientTenantId(data: WhereInput): WhereInput {
+  const safe = { ...data }
+  delete safe.tenantId
+  return safe
+}
+
 function assertCreateTenantId(data: WhereInput, tenantId: string): WhereInput {
   if ('tenantId' in data && data.tenantId !== undefined && data.tenantId !== tenantId) {
     throw new TenantScopeViolationError('client-provided tenantId does not match active tenant')
@@ -66,9 +71,30 @@ function assertCreateTenantId(data: WhereInput, tenantId: string): WhereInput {
   return { ...data, tenantId }
 }
 
+/**
+ * Reject divergent tenantId and strip tenantId from update payloads so ownership cannot be reassigned.
+ */
+function assertUpdateData(data: WhereInput | undefined, tenantId: string): WhereInput {
+  if (!data) {
+    return {}
+  }
+  if ('tenantId' in data && data.tenantId !== undefined && data.tenantId !== tenantId) {
+    throw new TenantScopeViolationError('client-provided tenantId does not match active tenant')
+  }
+  return withoutClientTenantId(data)
+}
+
 function applyTenantToArgs(operation: string, args: QueryArgs, tenantId: string): QueryArgs {
   if (FILTER_OPERATIONS.has(operation)) {
     return { ...args, where: andWhere(args.where, tenantId) }
+  }
+
+  if (operation === 'updateMany') {
+    return {
+      ...args,
+      where: andWhere(args.where, tenantId),
+      data: assertUpdateData(args.data as WhereInput | undefined, tenantId),
+    }
   }
 
   if (operation === 'create') {
@@ -88,7 +114,15 @@ function applyTenantToArgs(operation: string, args: QueryArgs, tenantId: string)
       ...args,
       where: andWhere(args.where, tenantId),
       create: assertCreateTenantId(args.create ?? {}, tenantId),
-      update: args.update,
+      update: assertUpdateData(args.update, tenantId),
+    }
+  }
+
+  if (operation === 'update') {
+    return {
+      ...args,
+      where: andWhere(args.where, tenantId),
+      data: assertUpdateData(args.data as WhereInput | undefined, tenantId),
     }
   }
 
@@ -99,8 +133,8 @@ function isBypassActive(): boolean {
   if (bypassStorage.getStore()) {
     return true
   }
-  const requestId = RequestContextStorage.get()?.requestId
-  return Boolean(requestId && bypassByRequestId.has(requestId))
+  const scopeId = RequestContextStorage.get()?.scopeId
+  return Boolean(scopeId && bypassByScopeId.has(scopeId))
 }
 
 export function createTenantScopedExtension() {
@@ -109,20 +143,21 @@ export function createTenantScopedExtension() {
       name: 'tenantScoped',
       client: {
         async bypassTenant<T>(reason: string, fn: () => Promise<T>): Promise<T> {
-          const requestId = RequestContextStorage.get()?.requestId
+          const request = RequestContextStorage.get()
+          const scopeId = request?.scopeId
           logger.warn('tenant_scope.bypass', {
             reason,
-            requestId,
+            requestId: request?.requestId,
             metric: 'tenant_scope.bypass',
           })
-          if (requestId) {
-            bypassByRequestId.set(requestId, reason)
+          if (scopeId) {
+            bypassByScopeId.set(scopeId, reason)
           }
           try {
             return await bypassStorage.run({ reason }, fn)
           } finally {
-            if (requestId) {
-              bypassByRequestId.delete(requestId)
+            if (scopeId) {
+              bypassByScopeId.delete(scopeId)
             }
           }
         },
@@ -162,11 +197,12 @@ export function createTenantScopedExtension() {
             }
 
             if (operation === 'update') {
+              const safeData = assertUpdateData((args as QueryArgs).data as WhereInput | undefined, tenant.tenantId)
               // Parent-client delegates still re-enter this extension; use bypass for the mutation helpers.
               return bypassStorage.run({ reason: 'tenant-scoped-update' }, async () => {
                 const updateResult = await delegate.updateMany({
                   where: andWhere((args as QueryArgs).where, tenant.tenantId),
-                  data: (args as QueryArgs).data,
+                  data: safeData,
                 })
                 if (updateResult.count === 0) {
                   throw new TenantOwnedRecordNotFoundError()

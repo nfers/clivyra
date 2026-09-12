@@ -41,6 +41,11 @@ class UpdateMembershipDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean
+
+  /** Intentionally accepted to prove extension rejects client tenantId on update. */
+  @IsOptional()
+  @IsString()
+  tenantId?: string
 }
 
 /**
@@ -104,20 +109,28 @@ export class TestMembershipsController {
     @Body() body: UpdateMembershipDto,
   ) {
     void tenant
-    return this.prisma.membership.update({
-      where: { id },
-      data: {
-        ...(body.role !== undefined ? { role: body.role } : {}),
-        ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
-      },
-      select: {
-        id: true,
-        tenantId: true,
-        userId: true,
-        role: true,
-        isActive: true,
-      },
-    })
+    try {
+      return await this.prisma.membership.update({
+        where: { id },
+        data: {
+          ...(body.role !== undefined ? { role: body.role } : {}),
+          ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
+          ...(body.tenantId !== undefined ? { tenantId: body.tenantId } : {}),
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          userId: true,
+          role: true,
+          isActive: true,
+        },
+      })
+    } catch (error) {
+      if (error instanceof TenantScopeViolationError) {
+        throw error
+      }
+      throw error
+    }
   }
 
   @Delete(':id')

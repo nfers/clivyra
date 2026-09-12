@@ -8,7 +8,15 @@ import { RequestContextMiddleware } from './common/request-context/request-conte
 const port = Number(process.env.API_PORT ?? 3001)
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000'
 
+function assertSafeBootEnvironment(): void {
+  if (process.env.NODE_ENV === 'test' && !process.env.JEST_WORKER_ID) {
+    throw new Error('Refusing to listen when NODE_ENV=test outside Jest (missing JEST_WORKER_ID)')
+  }
+}
+
 async function bootstrap() {
+  assertSafeBootEnvironment()
+
   const logger = new AppLogger()
   const app = await NestFactory.create(AppModule, { logger })
 
@@ -18,7 +26,7 @@ async function bootstrap() {
     instance.set?.('trust proxy', 1)
   }
 
-  // Bind ALS at the Express layer before Nest routing (critical for async guards/handlers).
+  // Single RequestContext path: Express middleware before Nest routing (not Nest MiddlewareConsumer).
   app.use(new RequestContextMiddleware().use.bind(new RequestContextMiddleware()))
 
   app.use(helmet())

@@ -36,6 +36,40 @@ describe('tenantScoped extension', () => {
     })
   })
 
+  it('throws TenantScopeViolationError when update data tenantId diverges', async () => {
+    await TenantContextStorage.run(tenantA, async () => {
+      await expect(
+        prisma.membership.update({
+          where: { id: 'membership-1' },
+          data: { tenantId: 'tenant-b', role: 'ADMIN' },
+        }),
+      ).rejects.toBeInstanceOf(TenantScopeViolationError)
+    })
+  })
+
+  it('throws TenantScopeViolationError when updateMany data tenantId diverges', async () => {
+    await TenantContextStorage.run(tenantA, async () => {
+      await expect(
+        prisma.membership.updateMany({
+          where: { id: 'membership-1' },
+          data: { tenantId: 'tenant-b' },
+        }),
+      ).rejects.toBeInstanceOf(TenantScopeViolationError)
+    })
+  })
+
+  it('throws TenantScopeViolationError when upsert update tenantId diverges', async () => {
+    await TenantContextStorage.run(tenantA, async () => {
+      await expect(
+        prisma.membership.upsert({
+          where: { id: 'membership-1' },
+          create: { tenantId: 'tenant-a', userId: 'user-x', role: 'OWNER' },
+          update: { tenantId: 'tenant-b' },
+        }),
+      ).rejects.toBeInstanceOf(TenantScopeViolationError)
+    })
+  })
+
   it('allows bypassTenant without requiring tenant ALS', async () => {
     await expect(prisma.bypassTenant('unit-test', async () => 'ok')).resolves.toBe('ok')
   })

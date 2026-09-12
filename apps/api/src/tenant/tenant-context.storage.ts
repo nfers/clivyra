@@ -4,14 +4,14 @@ import { RequestContextStorage } from '../common/request-context/request-context
 
 const fallbackAls = new AsyncLocalStorage<TenantContext>()
 
-/** RequestId → tenant map bridges ALS gaps after async guard awaits. */
-const tenantByRequestId = new Map<string, TenantContext>()
+/** scopeId → tenant map bridges ALS gaps after async guard awaits. Never keyed by client headers. */
+const tenantByScopeId = new Map<string, TenantContext>()
 
 /**
  * Tenant context ALS facade.
  * Nest guards cannot wrap the handler in `run()`, so the request middleware
  * owns the AsyncLocalStorage store and the guard mutates `tenantContext` on it
- * (`enterWith` pattern from CLI-11 spec). A requestId-indexed fallback covers
+ * (`enterWith` pattern from CLI-11 spec). A scopeId-indexed fallback covers
  * Prisma calls after async boundaries that drop `enterWith` bindings.
  */
 export const TenantContextStorage = {
@@ -19,7 +19,7 @@ export const TenantContextStorage = {
     const request = RequestContextStorage.get()
     if (request) {
       request.tenantContext = context
-      tenantByRequestId.set(request.requestId, context)
+      tenantByScopeId.set(request.scopeId, context)
     }
     fallbackAls.enterWith(context)
   },
@@ -33,10 +33,10 @@ export const TenantContextStorage = {
     if (request?.tenantContext) {
       return request.tenantContext
     }
-    if (request?.requestId) {
-      const byRequest = tenantByRequestId.get(request.requestId)
-      if (byRequest) {
-        return byRequest
+    if (request?.scopeId) {
+      const byScope = tenantByScopeId.get(request.scopeId)
+      if (byScope) {
+        return byScope
       }
     }
     return fallbackAls.getStore()
@@ -50,9 +50,9 @@ export const TenantContextStorage = {
     return context
   },
 
-  clear(requestId?: string): void {
-    if (requestId) {
-      tenantByRequestId.delete(requestId)
+  clear(scopeId?: string): void {
+    if (scopeId) {
+      tenantByScopeId.delete(scopeId)
     }
   },
 }
