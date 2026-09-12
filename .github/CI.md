@@ -5,6 +5,9 @@
 | Workflow | File | When | Purpose |
 | --- | --- | --- | --- |
 | PR Quality Gate | `.github/workflows/pr-check.yml` | pull_request (+ manual) | Lint, typecheck, tests, security when Node workspace exists; otherwise bootstrap-aware skip |
+| Deploy OCI | `.github/workflows/deploy-oci.yml` | push `develop`→dev, `master`→prod, or manual | SSH + Docker Compose deploy to OCI VMs |
+
+OCI setup (VMs, secrets, `.env`): see [`infra/oci/README.md`](../infra/oci/README.md).
 
 After Sprint 0 bootstrap (`package.json` + `package-lock.json` on the default branch), the gate runs Node jobs automatically. The bootstrap PR may also introduce `ci.yml` (push + PR) and Dependabot.
 

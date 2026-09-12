@@ -1,0 +1,102 @@
+name: Deploy OCI
+
+on:
+  push:
+    branches:
+      - develop
+      - master
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+concurrency:
+  group: deploy-oci-${{ github.event.inputs.environment || (github.ref_name == 'master' && 'prod' || 'dev') }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.pick.outputs.environment }}
+      should_deploy: ${{ steps.pick.outputs.should_deploy }}
+    steps:
+      - name: Pick target
+        id: pick
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [[ "${{ github.ref_name }}" == "master" ]]; then
+            ENV="prod"
+          elif [[ "${{ github.ref_name }}" == "develop" ]]; then
+            ENV="dev"
+          else
+            ENV=""
+          fi
+
+          if [[ -z "$ENV" ]]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "environment=" >> "$GITHUB_OUTPUT"
+            echo "No deploy mapping for this event."
+            exit 0
+          fi
+
+          echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+          echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          echo "Deploy target: $ENV"
+
+  deploy:
+    name: Deploy (${{ needs.resolve.outputs.environment }})
+    needs: resolve
+    if: needs.resolve.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Guard monorepo presence
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for f in package.json infra/Dockerfile infra/oci/compose.yml infra/oci/scripts/deploy-remote.sh; do
+            if [[ ! -f "$f" ]]; then
+              echo "Missing required file: $f"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            echo "::error::Monorepo/bootstrap artifacts are required before OCI deploy. Merge Sprint 0 bootstrap first."
+            exit 1
+          fi
+
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
+
+      - name: Deploy to OCI
+        shell: bash
+        env:
+          OCI_SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+          OCI_SSH_USER: ${{ secrets.OCI_SSH_USER }}
+          OCI_DEV_HOST: ${{ secrets.OCI_DEV_HOST }}
+          OCI_PROD_HOST: ${{ secrets.OCI_PROD_HOST }}
+          OCI_DEV_PATH: ${{ secrets.OCI_DEV_PATH }}
+          OCI_PROD_PATH: ${{ secrets.OCI_PROD_PATH }}
+          DEV_ENV_FILE: ${{ secrets.DEV_ENV_FILE }}
+          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          chmod +x infra/oci/scripts/deploy-remote.sh
+          infra/oci/scripts/deploy-remote.sh "${{ needs.resolve.outputs.environment }}"
