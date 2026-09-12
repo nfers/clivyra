@@ -22,6 +22,26 @@ export const AUDIT_ACTIONS = [
   'system.tenant_bypass',
   // auditoria
   'audit.queried',
+  // studio (CLI-16)
+  'tenant.settings.updated',
+  'tenant.logo.updated',
+  'tenant.onboarding.completed',
+  'professional.created',
+  'professional.updated',
+  'professional.linked',
+  'professional.unlinked',
+  'professional.deactivated',
+  'professional.activated',
+  'professional.signature.uploaded',
+  'professional.signature.deleted',
+  'professional.signature.viewed',
+  'service.created',
+  'service.updated',
+  'service.deactivated',
+  'room.created',
+  'room.updated',
+  'room.deactivated',
+  'working_hours.updated',
 ] as const
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
@@ -74,6 +94,25 @@ export const AUDIT_ACTION_LABELS_PT: Record<AuditAction, string> = {
   'users.membership.activated': 'Usuário reativado',
   'system.tenant_bypass': 'Bypass de tenant',
   'audit.queried': 'Auditoria consultada',
+  'tenant.settings.updated': 'Configurações do studio atualizadas',
+  'tenant.logo.updated': 'Logo do studio atualizada',
+  'tenant.onboarding.completed': 'Onboarding concluído',
+  'professional.created': 'Profissional criado',
+  'professional.updated': 'Profissional atualizado',
+  'professional.linked': 'Profissional vinculado a usuário',
+  'professional.unlinked': 'Vínculo de profissional removido',
+  'professional.deactivated': 'Profissional desativado',
+  'professional.activated': 'Profissional ativado',
+  'professional.signature.uploaded': 'Assinatura enviada',
+  'professional.signature.deleted': 'Assinatura removida',
+  'professional.signature.viewed': 'Assinatura visualizada',
+  'service.created': 'Serviço criado',
+  'service.updated': 'Serviço atualizado',
+  'service.deactivated': 'Serviço desativado',
+  'room.created': 'Sala criada',
+  'room.updated': 'Sala atualizada',
+  'room.deactivated': 'Sala desativada',
+  'working_hours.updated': 'Horários atualizados',
 }
 
 export function isAuditAction(value: string): value is AuditAction {

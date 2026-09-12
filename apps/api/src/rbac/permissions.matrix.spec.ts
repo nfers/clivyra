@@ -15,7 +15,10 @@ import {
  */
 const EXPECTED: Record<Role, Record<Permission, boolean>> = {
   OWNER: Object.fromEntries(PERMISSIONS.map((p) => [p, true])) as Record<Permission, boolean>,
-  ADMIN: Object.fromEntries(PERMISSIONS.map((p) => [p, true])) as Record<Permission, boolean>,
+  ADMIN: {
+    ...Object.fromEntries(PERMISSIONS.map((p) => [p, true])),
+    'tenant:manage': false,
+  } as Record<Permission, boolean>,
   PROFESSIONAL: {
     'agenda:read': true,
     'agenda:write': true,
@@ -30,6 +33,10 @@ const EXPECTED: Record<Role, Record<Permission, boolean>> = {
     'users:read': false,
     'users:write': false,
     'audit:read': false,
+    'tenant:manage': false,
+    'professionals:read': true,
+    'professionals:write': false,
+    'professionals:self': true,
   },
   RECEPTION: {
     'agenda:read': true,
@@ -45,6 +52,10 @@ const EXPECTED: Record<Role, Record<Permission, boolean>> = {
     'users:read': false,
     'users:write': false,
     'audit:read': false,
+    'tenant:manage': false,
+    'professionals:read': true,
+    'professionals:write': false,
+    'professionals:self': false,
   },
 }
 
@@ -61,6 +72,13 @@ describe('permissions matrix', () => {
     expect(hasPermission('PROFESSIONAL', 'finance:read')).toBe(false)
     expect(hasPermission('RECEPTION', 'clinical-record:read')).toBe(false)
     expect(hasPermission('RECEPTION', 'finance:read')).toBe(false)
+  })
+
+  it('restricts tenant:manage to OWNER', () => {
+    expect(hasPermission('OWNER', 'tenant:manage')).toBe(true)
+    expect(hasPermission('ADMIN', 'tenant:manage')).toBe(false)
+    expect(hasPermission('PROFESSIONAL', 'tenant:manage')).toBe(false)
+    expect(hasPermission('RECEPTION', 'tenant:manage')).toBe(false)
   })
 
   it('hasEveryPermission requires all listed permissions', () => {

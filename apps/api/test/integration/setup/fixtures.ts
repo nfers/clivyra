@@ -22,6 +22,12 @@ export async function resetFixtures(): Promise<IntegrationFixtures> {
   await flushPendingAuthAuditWrites()
   // TRUNCATE bypasses DELETE triggers (append-only AuditLog).
   await prisma.$executeRawUnsafe('TRUNCATE TABLE "AuditLog"')
+  await prisma.workingHours.deleteMany()
+  await prisma.professionalService.deleteMany()
+  await prisma.professional.deleteMany()
+  await prisma.service.deleteMany()
+  await prisma.room.deleteMany()
+  await prisma.tenantSettings.deleteMany()
   await prisma.refreshSession.deleteMany()
   await prisma.passwordResetToken.deleteMany()
   await prisma.invitation.deleteMany()
@@ -38,6 +44,13 @@ export async function resetFixtures(): Promise<IntegrationFixtures> {
   })
   const studioB = await prisma.tenant.create({
     data: { slug: 'studio-b', name: 'Studio B' },
+  })
+
+  await prisma.tenantSettings.createMany({
+    data: [
+      { tenantId: studioA.id, displayName: 'Studio A' },
+      { tenantId: studioB.id, displayName: 'Studio B' },
+    ],
   })
 
   const ownerAUser = await prisma.user.create({

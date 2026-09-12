@@ -40,6 +40,21 @@ export function AppHeader({ session }: { session: MeResponse }) {
         <p className="auth-lead">{session.user.name}</p>
         <nav className="app-nav" aria-label="Principal">
           <Link href="/app">Início</Link>
+          <Can permission="settings:read">
+            <Link href="/app/configuracoes/studio">Studio</Link>
+          </Can>
+          <Can permission="professionals:read">
+            <Link href="/app/configuracoes/profissionais">Profissionais</Link>
+          </Can>
+          <Can permission="settings:read">
+            <Link href="/app/configuracoes/servicos">Serviços</Link>
+          </Can>
+          <Can permission="settings:read">
+            <Link href="/app/configuracoes/salas">Salas</Link>
+          </Can>
+          <Can permission="professionals:self">
+            <Link href="/app/perfil">Perfil</Link>
+          </Can>
           <Can permission="users:read">
             <Link href="/app/configuracoes/usuarios">Usuários</Link>
           </Can>

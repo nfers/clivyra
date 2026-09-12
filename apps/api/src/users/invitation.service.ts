@@ -368,6 +368,8 @@ export class InvitationService {
       invitationId: invitation.id,
       email: invitation.email,
       role: membership.role,
+      membershipId: membership.membershipId,
+      displayName: name,
     })
 
     return this.auth.issueSession({
