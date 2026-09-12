@@ -578,6 +578,34 @@ export class AuthService {
     )
   }
 
+  /** Issues a session for an already-validated membership (e.g. invitation accept). */
+  issueSession(input: {
+    userId: string
+    tenantId: string
+    tenantSlug: string
+    tenantName: string
+    membershipId: string
+    role: MembershipRole
+    email: string
+    name: string
+    request: RequestWithAuth
+    client?: SessionClientKind
+  }): Promise<AuthSessionResponse> {
+    return this.createSessionResponse({
+      ...input,
+      client: input.client ?? resolveClientKind(input.request.headers),
+    })
+  }
+
+  async revokeSessionsForUserInTenant(userId: string, tenantId: string, reason: string): Promise<void> {
+    await this.prisma.bypassTenant('auth-revoke-tenant-sessions', () =>
+      this.prisma.refreshSession.updateMany({
+        where: { userId, tenantId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: reason },
+      }),
+    )
+  }
+
   private async createSessionResponse(input: {
     userId: string
     tenantId: string

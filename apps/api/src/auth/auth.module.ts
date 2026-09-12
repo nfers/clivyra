@@ -25,7 +25,6 @@ import { PasswordResetService } from './password-reset.service'
       useClass: LoggingAuthEvents,
     },
   ],
-  exports: [AuthGuard, AuthTokenService, AuthService],
+  exports: [AuthGuard, AuthTokenService, AuthService, PasswordHasherService, AUTH_EVENTS_PORT],
 })
 export class AuthModule {}
-

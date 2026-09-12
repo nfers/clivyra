@@ -14,6 +14,13 @@ enum MembershipRole {
   RECEPTION
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 model SystemMetadata {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -23,14 +30,15 @@ model SystemMetadata {
 }
 
 model Tenant {
-  id          String           @id @default(cuid())
-  slug        String           @unique
-  name        String
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  memberships Membership[]
-  sessions    RefreshSession[]
+  id           String           @id @default(cuid())
+  slug         String           @unique
+  name         String
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  memberships  Membership[]
+  sessions     RefreshSession[]
+  invitations  Invitation[]
 
   @@index([isActive])
 }
@@ -58,20 +66,45 @@ model User {
 }
 
 model Membership {
-  id        String         @id @default(cuid())
-  tenantId  String
-  userId    String
-  role      MembershipRole
-  isActive  Boolean        @default(true)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  tenantId        String
+  userId          String
+  role            MembershipRole
+  isActive        Boolean        @default(true)
+  deactivatedAt   DateTime?
+  deactivatedById String?
+  roleChangedAt   DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, userId])
   @@index([tenantId, role])
   @@index([tenantId, isActive])
   @@index([userId, isActive])
+}
+
+/// Tenant-owned invitation. Partial unique index enforces one PENDING per (tenantId, email).
+model Invitation {
+  id              String           @id @default(cuid())
+  tenantId        String
+  email           String
+  role            MembershipRole
+  tokenHash       String           @unique
+  status          InvitationStatus @default(PENDING)
+  expiresAt       DateTime
+  invitedByUserId String
+  acceptedAt      DateTime?
+  acceptedUserId  String?
+  revokedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status])
+  @@index([tenantId, email, status])
+  @@index([expiresAt])
 }
 
 model RefreshSession {

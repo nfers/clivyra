@@ -20,6 +20,7 @@ export const FIXTURE_PASSWORD = 'CorrectHorse1Battery!'
 export async function resetFixtures(): Promise<IntegrationFixtures> {
   await prisma.refreshSession.deleteMany()
   await prisma.passwordResetToken.deleteMany()
+  await prisma.invitation.deleteMany()
   await prisma.membership.deleteMany()
   await prisma.user.deleteMany()
   await prisma.tenant.deleteMany()

@@ -8,17 +8,26 @@ import { TenantExceptionFilter } from './common/filters/tenant-exception.filter'
 import { HealthController } from './health.controller'
 import { MailerModule } from './mailer/mailer.module'
 import { PrismaModule } from './prisma/prisma.module'
+import { RbacGuard } from './rbac/rbac.guard'
+import { RbacModule } from './rbac/rbac.module'
+import { TenantContextGuard } from './tenant/tenant-context.guard'
 import { TenantModule } from './tenant/tenant.module'
 import { TestMembershipsController } from './test-support/test-memberships.controller'
+import { TestRbacProbeController } from './test-support/test-rbac-probe.controller'
+import { UsersModule } from './users/users.module'
 
 const testControllers: Type<unknown>[] =
-  process.env.NODE_ENV === 'test' ? [TestMembershipsController] : []
+  process.env.NODE_ENV === 'test'
+    ? [TestMembershipsController, TestRbacProbeController]
+    : []
 
 @Module({
   imports: [
     PrismaModule,
     TenantModule,
     AuthModule,
+    UsersModule,
+    RbacModule,
     MailerModule,
     ThrottlerModule.forRoot([
       {
@@ -44,6 +53,14 @@ const testControllers: Type<unknown>[] =
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TenantContextGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RbacGuard,
     },
   ],
 })

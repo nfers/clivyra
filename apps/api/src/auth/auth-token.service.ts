@@ -6,6 +6,7 @@ interface AuthTokenConfig {
   accessTokenTtlSeconds: number
   refreshTokenTtlSeconds: number
   passwordResetTtlSeconds: number
+  invitationTtlHours: number
 }
 
 interface AccessTokenInput {
@@ -41,6 +42,7 @@ export class AuthTokenService {
       accessTokenTtlSeconds: Number(process.env.AUTH_ACCESS_TOKEN_TTL_SECONDS ?? 900),
       refreshTokenTtlSeconds: Number(process.env.AUTH_REFRESH_TOKEN_TTL_SECONDS ?? 604_800),
       passwordResetTtlSeconds: Number(process.env.AUTH_PASSWORD_RESET_TTL_SECONDS ?? 1_800),
+      invitationTtlHours: Number(process.env.INVITATION_TTL_HOURS ?? 72),
     }
   }
 
@@ -53,6 +55,7 @@ export class AuthTokenService {
       accessTokenTtlSeconds: config.accessTokenTtlSeconds ?? 900,
       refreshTokenTtlSeconds: config.refreshTokenTtlSeconds ?? 604_800,
       passwordResetTtlSeconds: config.passwordResetTtlSeconds ?? 1_800,
+      invitationTtlHours: config.invitationTtlHours ?? 72,
     }
     return service
   }
@@ -132,6 +135,10 @@ export class AuthTokenService {
 
   passwordResetExpiresAt(): Date {
     return new Date(Date.now() + this.config.passwordResetTtlSeconds * 1000)
+  }
+
+  invitationExpiresAt(): Date {
+    return new Date(Date.now() + this.config.invitationTtlHours * 60 * 60 * 1000)
   }
 
   private encodeJson(value: unknown): string {
