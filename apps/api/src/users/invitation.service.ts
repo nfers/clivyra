@@ -130,6 +130,8 @@ export class InvitationService {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
       invitationId: invitation.id,
+      email: invitation.email,
+      role: invitation.role,
     })
 
     return {
@@ -185,6 +187,8 @@ export class InvitationService {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
       invitationId: invitation.id,
+      email: invitation.email,
+      role: invitation.role,
     })
   }
 
@@ -215,6 +219,7 @@ export class InvitationService {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
       invitationId: invitation.id,
+      email: invitation.email,
     })
   }
 
@@ -361,6 +366,8 @@ export class InvitationService {
       tenantId: invitation.tenantId,
       userId,
       invitationId: invitation.id,
+      email: invitation.email,
+      role: membership.role,
     })
 
     return this.auth.issueSession({

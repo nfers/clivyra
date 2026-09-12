@@ -11,6 +11,7 @@ import type { AuthSessionListItem, AuthSessionResponse, MeResponse, Role } from 
 import type { MembershipRole } from '@prisma/client'
 import { randomUUID } from 'node:crypto'
 import { PrismaService } from '../prisma/prisma.service'
+import { TenantContextStorage } from '../tenant/tenant-context.storage'
 import { accountLockoutPolicy } from './account-lockout.policy'
 import { AUTH_EVENTS_PORT, type AuthEventsPort } from './auth-events.port'
 import { clientIp, hashIp, truncateUserAgent } from './auth-request.util'
@@ -138,7 +139,13 @@ export class AuthService {
     })
 
     if (user && accountLockoutPolicy.isLocked(lockState)) {
-      this.events.emit('auth.login.locked', { userId: user.id, ipHash: ipHashValue })
+      const lockedTenantId =
+        user.memberships.length === 1 ? user.memberships[0]!.tenantId : undefined
+      this.events.emit('auth.login.locked', {
+        userId: user.id,
+        tenantId: lockedTenantId,
+        ipHash: ipHashValue,
+      })
       throw new HttpException({ code: 'ACCOUNT_LOCKED', message: ACCOUNT_LOCKED_MESSAGE }, HttpStatus.LOCKED)
     }
 
@@ -156,11 +163,23 @@ export class AuthService {
           },
         })
         if (decision.locked) {
-          this.events.emit('auth.login.locked', { userId: user.id, ipHash: ipHashValue })
+          const lockedTenantId =
+            user.memberships.length === 1 ? user.memberships[0]!.tenantId : undefined
+          this.events.emit('auth.login.locked', {
+            userId: user.id,
+            tenantId: lockedTenantId,
+            ipHash: ipHashValue,
+          })
           throw new HttpException({ code: 'ACCOUNT_LOCKED', message: ACCOUNT_LOCKED_MESSAGE }, HttpStatus.LOCKED)
         }
       }
-      this.events.emit('auth.login.failed', { userId: user?.id, ipHash: ipHashValue })
+      const failedTenantId =
+        user?.memberships.length === 1 ? user.memberships[0]!.tenantId : undefined
+      this.events.emit('auth.login.failed', {
+        userId: user?.id,
+        tenantId: failedTenantId,
+        ipHash: ipHashValue,
+      })
       throw new UnauthorizedException(AUTH_FAILURE_MESSAGE)
     }
 
@@ -206,6 +225,7 @@ export class AuthService {
     this.events.emit('auth.login.succeeded', {
       userId: user.id,
       tenantId: membership.tenantId,
+      tenantSlug: membership.tenant.slug,
       ipHash: ipHashValue,
     })
 
@@ -414,15 +434,26 @@ export class AuthService {
       return
     }
     const tokenHash = this.tokens.hashOpaqueToken(dto.refreshToken)
-    const updated = await this.prisma.bypassTenant('auth-logout', () =>
-      this.prisma.refreshSession.updateMany({
+    const existing = await this.prisma.bypassTenant('auth-logout-lookup', () =>
+      this.prisma.refreshSession.findFirst({
         where: { tokenHash, revokedAt: null },
+        select: { id: true, userId: true, tenantId: true },
+      }),
+    )
+    if (!existing) {
+      return
+    }
+    await this.prisma.bypassTenant('auth-logout', () =>
+      this.prisma.refreshSession.updateMany({
+        where: { id: existing.id, revokedAt: null },
         data: { revokedAt: new Date(), revokedReason: 'logout' },
       }),
     )
-    if (updated.count > 0) {
-      this.events.emit('auth.logout', {})
-    }
+    this.events.emit('auth.logout', {
+      userId: existing.userId,
+      tenantId: existing.tenantId,
+      sessionId: existing.id,
+    })
   }
 
   async logoutAll(userId: string): Promise<void> {
@@ -439,7 +470,7 @@ export class AuthService {
         }),
       ])
     })
-    this.events.emit('auth.logout', { userId, reason: 'logout_all' })
+    this.events.emit('auth.logout', { userId, reason: 'logout_all', tenantId: TenantContextStorage.get()?.tenantId })
   }
 
   async switchTenant(
@@ -471,7 +502,15 @@ export class AuthService {
       throw new NotFoundException()
     }
 
+    let fromTenantId: string | undefined
     if (currentSessionId) {
+      const current = await this.prisma.bypassTenant('auth-switch-tenant-from', () =>
+        this.prisma.refreshSession.findFirst({
+          where: { id: currentSessionId, userId },
+          select: { tenantId: true },
+        }),
+      )
+      fromTenantId = current?.tenantId
       await this.prisma.bypassTenant('auth-switch-tenant', () =>
         this.prisma.refreshSession.updateMany({
           where: { id: currentSessionId, userId, revokedAt: null },
@@ -480,7 +519,7 @@ export class AuthService {
       )
     }
 
-    return this.createSessionResponse({
+    const session = await this.createSessionResponse({
       userId: membership.user.id,
       tenantId: membership.tenantId,
       tenantSlug: membership.tenant.slug,
@@ -493,6 +532,17 @@ export class AuthService {
       client: resolveClientKind(request.headers),
       familyId: randomUUID(),
     })
+
+    this.events.emit('auth.tenant.switched', {
+      userId: membership.user.id,
+      tenantId: membership.tenantId,
+      membershipId: membership.id,
+      fromTenantId,
+      toTenantId: membership.tenantId,
+      toTenantSlug: membership.tenant.slug,
+    })
+
+    return session
   }
 
   async me(userId: string, tenantId: string): Promise<MeResponse> {

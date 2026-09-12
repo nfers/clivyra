@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import type { Role, TenantContext } from '@clivyra/types'
+import { AuditService } from '../audit/audit.service'
 import { AUTH_EVENTS_PORT, type AuthEventsPort } from '../auth/auth-events.port'
 import { AuthService } from '../auth/auth.service'
 import { PrismaService } from '../prisma/prisma.service'
@@ -16,6 +17,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly policy: MembershipPolicy,
     private readonly auth: AuthService,
+    private readonly audit: AuditService,
     @Inject(AUTH_EVENTS_PORT) private readonly events: AuthEventsPort,
   ) {}
 
@@ -73,20 +75,41 @@ export class UsersService {
       role,
     )
 
-    const updated = await this.prisma.membership.update({
-      where: { id: target.id },
-      data: { role, roleChangedAt: new Date() },
-      select: { id: true, role: true },
+    await this.prisma.$transaction(async (tx) => {
+      const result = await tx.membership.updateMany({
+        where: { id: target.id, tenantId: ctx.tenantId },
+        data: { role, roleChangedAt: new Date() },
+      })
+      if (result.count === 0) {
+        throw new NotFoundException()
+      }
+      await this.audit.record(
+        {
+          action: 'users.role.changed',
+          entityType: 'Membership',
+          entityId: target.id,
+          metadata: { membershipId: target.id },
+          changes: {
+            before: { role: target.role },
+            after: { role },
+            fields: ['role'],
+          },
+          tenantId: ctx.tenantId,
+        },
+        tx,
+      )
     })
 
     this.events.emit('users.role.changed', {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
-      membershipId: updated.id,
-      reason: `${target.role}->${updated.role}`,
+      membershipId: target.id,
+      fromRole: target.role,
+      toRole: role,
+      persist: false,
     })
 
-    return { membershipId: updated.id, role: updated.role as Role }
+    return { membershipId: target.id, role }
   }
 
   async deactivate(ctx: TenantContext, membershipId: string): Promise<void> {
@@ -107,13 +130,25 @@ export class UsersService {
       isActive: target.isActive,
     })
 
-    await this.prisma.membership.update({
-      where: { id: target.id },
-      data: {
-        isActive: false,
-        deactivatedAt: new Date(),
-        deactivatedById: ctx.userId,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.membership.updateMany({
+        where: { id: target.id, tenantId: ctx.tenantId },
+        data: {
+          isActive: false,
+          deactivatedAt: new Date(),
+          deactivatedById: ctx.userId,
+        },
+      })
+      await this.audit.record(
+        {
+          action: 'users.membership.deactivated',
+          entityType: 'Membership',
+          entityId: target.id,
+          metadata: { membershipId: target.id },
+          tenantId: ctx.tenantId,
+        },
+        tx,
+      )
     })
 
     await this.auth.revokeSessionsForUserInTenant(target.userId, ctx.tenantId, 'membership_deactivated')
@@ -122,6 +157,7 @@ export class UsersService {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
       membershipId: target.id,
+      persist: false,
     })
   }
 
@@ -137,25 +173,37 @@ export class UsersService {
       return
     }
 
-    // Activating requires ability to assign that role.
     this.policy.assertCanAssignRole(ctx.role, target.role as Role)
     if (target.role === 'OWNER' && ctx.role !== 'OWNER') {
       throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Forbidden' })
     }
 
-    await this.prisma.membership.update({
-      where: { id: target.id },
-      data: {
-        isActive: true,
-        deactivatedAt: null,
-        deactivatedById: null,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.membership.updateMany({
+        where: { id: target.id, tenantId: ctx.tenantId },
+        data: {
+          isActive: true,
+          deactivatedAt: null,
+          deactivatedById: null,
+        },
+      })
+      await this.audit.record(
+        {
+          action: 'users.membership.activated',
+          entityType: 'Membership',
+          entityId: target.id,
+          metadata: { membershipId: target.id },
+          tenantId: ctx.tenantId,
+        },
+        tx,
+      )
     })
 
     this.events.emit('users.membership.activated', {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
       membershipId: target.id,
+      persist: false,
     })
   }
 }

@@ -44,6 +44,7 @@ Permissions (P0):
 - `clinical-record:read` / `clinical-record:write`
 - `settings:read` / `settings:write`
 - `users:read` / `users:write`
+- `audit:read` (CLI-14; OWNER/ADMIN)
 
 Finance and clinical-record are independent. D4: `ADMIN` keeps clinical-record access in P0.
 

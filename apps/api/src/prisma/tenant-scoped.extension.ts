@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { Prisma, type PrismaClient } from '@prisma/client'
+import { AuditImmutableError } from '../audit/audit.errors'
 import { AppLogger } from '../common/logging/app-logger.service'
 import { RequestContextStorage } from '../common/request-context/request-context.storage'
 import { TenantContextStorage } from '../tenant/tenant-context.storage'
@@ -18,6 +19,18 @@ const bypassStorage = new AsyncLocalStorage<BypassStore>()
 /** scopeId-keyed bypass — Prisma query hooks can drop ALS across engine boundaries. */
 const bypassByScopeId = new Map<string, string>()
 const logger = new AppLogger()
+
+type BypassAuditHook = (reason: string, tenantId: string | undefined) => void
+let bypassAuditHook: BypassAuditHook | undefined
+
+/** Registered by AuditModule — audits bypassTenant when a tenant is in scope. */
+export function setBypassAuditHook(hook: BypassAuditHook | undefined): void {
+  bypassAuditHook = hook
+}
+
+const SKIP_BYPASS_AUDIT = /^(audit-|tenant-scoped-)/
+
+const AUDIT_IMMUTABLE_OPS = new Set(['update', 'updateMany', 'delete', 'deleteMany', 'upsert'])
 
 type WhereInput = Record<string, unknown>
 
@@ -145,11 +158,19 @@ export function createTenantScopedExtension() {
         async bypassTenant<T>(reason: string, fn: () => Promise<T>): Promise<T> {
           const request = RequestContextStorage.get()
           const scopeId = request?.scopeId
+          const tenantId = TenantContextStorage.get()?.tenantId
           logger.warn('tenant_scope.bypass', {
             reason,
             requestId: request?.requestId,
             metric: 'tenant_scope.bypass',
           })
+          if (!SKIP_BYPASS_AUDIT.test(reason) && bypassAuditHook) {
+            try {
+              bypassAuditHook(reason, tenantId)
+            } catch {
+              // Never fail the business operation because bypass auditing failed.
+            }
+          }
           if (scopeId) {
             bypassByScopeId.set(scopeId, reason)
           }
@@ -165,6 +186,10 @@ export function createTenantScopedExtension() {
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
+            if (model === 'AuditLog' && AUDIT_IMMUTABLE_OPS.has(operation)) {
+              throw new AuditImmutableError()
+            }
+
             if (isGlobalModel(model)) {
               return query(args)
             }

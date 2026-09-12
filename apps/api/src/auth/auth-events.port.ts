@@ -7,6 +7,8 @@ export interface AuthEventPayload {
   familyId?: string
   ipHash?: string
   reason?: string
+  /** When false, only structured log — AuditService already persisted. */
+  persist?: boolean
   [key: string]: unknown
 }
 

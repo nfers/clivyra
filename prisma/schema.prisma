@@ -21,6 +21,12 @@ enum InvitationStatus {
   EXPIRED
 }
 
+enum AuditOutcome {
+  SUCCESS
+  DENIED
+  FAILURE
+}
+
 model SystemMetadata {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -39,8 +45,35 @@ model Tenant {
   memberships  Membership[]
   sessions     RefreshSession[]
   invitations  Invitation[]
+  auditLogs    AuditLog[]
 
   @@index([isActive])
+}
+
+/// Append-only audit trail (CLI-14). No update/delete via app or Postgres triggers.
+model AuditLog {
+  id                  String          @id @default(cuid())
+  tenantId            String
+  occurredAt          DateTime        @default(now())
+  actorUserId         String?
+  actorMembershipId   String?
+  actorRole           MembershipRole?
+  actorType           String          @default("USER")
+  action              String
+  entityType          String
+  entityId            String?
+  outcome             AuditOutcome    @default(SUCCESS)
+  requestId           String?
+  ipHash              String?
+  userAgent           String?
+  metadata            Json?
+  changes             Json?
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, occurredAt(sort: Desc)])
+  @@index([tenantId, entityType, entityId, occurredAt(sort: Desc)])
+  @@index([tenantId, actorUserId, occurredAt(sort: Desc)])
+  @@index([tenantId, action, occurredAt(sort: Desc)])
 }
 
 /// Entidade GLOBAL (não tenant-owned). Uma pessoa pode pertencer a vários tenants via Membership.
