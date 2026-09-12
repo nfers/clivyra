@@ -68,11 +68,64 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Standards
+        run: npm run check:standards
+
       - name: Typecheck
         run: npm run typecheck
 
       - name: Unit tests
         run: npm test
+
+  integration-tests:
+    name: Integration Tests
+    needs: readiness
+    if: >-
+      always()
+      && needs.readiness.result == 'success'
+      && needs.readiness.outputs.node_ready == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: clivyra
+          POSTGRES_PASSWORD: clivyra
+          POSTGRES_DB: clivyra
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U clivyra -d clivyra"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://clivyra:clivyra@localhost:5432/clivyra?schema=public
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Deploy migrations
+        run: npm run db:migrate:deploy
+
+      - name: Integration tests
+        run: npm run test:integration
 
   security:
     name: Security Guardrails
@@ -120,6 +173,7 @@ jobs:
     needs:
       - readiness
       - quality
+      - integration-tests
       - security
       - bootstrap-status
     if: always()
@@ -131,6 +185,7 @@ jobs:
         env:
           READINESS: ${{ needs.readiness.result }}
           QUALITY: ${{ needs.quality.result }}
+          INTEGRATION: ${{ needs.integration-tests.result }}
           SECURITY: ${{ needs.security.result }}
           BOOTSTRAP: ${{ needs.bootstrap-status.result }}
           NODE_READY: ${{ needs.readiness.outputs.node_ready }}
@@ -140,6 +195,7 @@ jobs:
           echo "readiness=$READINESS"
           echo "node_ready=${NODE_READY:-unset}"
           echo "quality=$QUALITY"
+          echo "integration-tests=$INTEGRATION"
           echo "security=$SECURITY"
           echo "bootstrap-status=$BOOTSTRAP"
 
@@ -152,11 +208,11 @@ jobs:
           fi
 
           if [[ "${NODE_READY:-}" == "true" ]]; then
-            if [[ "$QUALITY" != "success" || "$SECURITY" != "success" ]]; then
-              echo "::error::Node quality/security gates failed."
+            if [[ "$QUALITY" != "success" || "$SECURITY" != "success" || "$INTEGRATION" != "success" ]]; then
+              echo "::error::Node quality/security/integration gates failed."
               exit 1
             fi
-            echo "Full quality gate passed (lint, typecheck, tests, security)."
+            echo "Full quality gate passed (lint, typecheck, tests, integration, security)."
             exit 0
           fi
 

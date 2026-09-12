@@ -1,13 +1,12 @@
 import { ForbiddenException } from '@nestjs/common'
-import type { MembershipRole } from '@prisma/client'
+import type { TenantContext } from '@clivyra/types'
 import { TenantPrismaService } from './tenant-prisma.service'
-import type { TenantContext } from './tenant-context.types'
 
 const tenantContext: TenantContext = {
   userId: 'user-1',
   tenantId: 'tenant-a',
   membershipId: 'membership-1',
-  role: 'OWNER' satisfies MembershipRole,
+  role: 'OWNER',
 }
 
 describe('TenantPrismaService', () => {
@@ -28,6 +27,8 @@ describe('TenantPrismaService', () => {
   })
 
   it('rejects entities from another tenant before mutation', () => {
-    expect(() => service.assertTenantOwnership(tenantContext, { tenantId: 'tenant-b' })).toThrow(ForbiddenException)
+    expect(() => service.assertTenantOwnership(tenantContext, { tenantId: 'tenant-b' })).toThrow(
+      ForbiddenException,
+    )
   })
 })

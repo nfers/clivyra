@@ -8,14 +8,17 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
+    "test:integration": "NODE_ENV=test jest --config jest.integration.config.cjs --runInBand",
     "prisma:generate": "prisma generate --schema ../../prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema ../../prisma/schema.prisma",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema ../../prisma/schema.prisma",
     "prisma:seed": "prisma db seed --schema ../../prisma/schema.prisma"
   },
   "prisma": {
     "seed": "ts-node ../../prisma/seed.ts"
   },
   "dependencies": {
+    "@clivyra/types": "*",
     "@nestjs/common": "^11.2.3",
     "@nestjs/core": "^11.2.3",
     "@nestjs/platform-express": "^11.2.3",

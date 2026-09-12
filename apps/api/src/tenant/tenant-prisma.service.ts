@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common'
-import type { TenantContext } from './tenant-context.types'
+import type { TenantContext } from '@clivyra/types'
 
 type ObjectRecord = Record<string, unknown>
 
@@ -12,7 +12,10 @@ function withoutClientTenantId<TValue extends ObjectRecord>(value: TValue): Omit
 
 @Injectable()
 export class TenantPrismaService {
-  where<TWhere extends ObjectRecord>(tenant: TenantContext, where?: TWhere): Omit<TWhere, 'tenantId'> & { tenantId: string } {
+  where<TWhere extends ObjectRecord>(
+    tenant: TenantContext,
+    where?: TWhere,
+  ): Omit<TWhere, 'tenantId'> & { tenantId: string } {
     const safeWhere = withoutClientTenantId(where ?? ({} as TWhere))
 
     return {
@@ -21,7 +24,10 @@ export class TenantPrismaService {
     } as Omit<TWhere, 'tenantId'> & { tenantId: string }
   }
 
-  createData<TData extends ObjectRecord>(tenant: TenantContext, data: TData): Omit<TData, 'tenantId'> & { tenantId: string } {
+  createData<TData extends ObjectRecord>(
+    tenant: TenantContext,
+    data: TData,
+  ): Omit<TData, 'tenantId'> & { tenantId: string } {
     const safeData = withoutClientTenantId(data)
 
     return {

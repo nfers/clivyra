@@ -34,11 +34,12 @@ model Tenant {
   @@index([isActive])
 }
 
+/// Entidade GLOBAL (não tenant-owned). Uma pessoa pode pertencer a vários tenants via Membership.
 model User {
   id           String       @id @default(cuid())
-  email        String       @unique
+  email        String       @unique // normalizado lower-case na aplicação
   name         String
-  passwordHash String?
+  passwordHash String? // preenchido em CLI-12
   isActive     Boolean      @default(true)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
@@ -49,16 +50,16 @@ model User {
 
 model Membership {
   id        String         @id @default(cuid())
-  userId    String
   tenantId  String
+  userId    String
   role      MembershipRole
   isActive  Boolean        @default(true)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, tenantId])
+  @@unique([tenantId, userId])
   @@index([tenantId, role])
   @@index([tenantId, isActive])
   @@index([userId, isActive])

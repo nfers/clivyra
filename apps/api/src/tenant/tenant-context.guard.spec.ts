@@ -1,6 +1,6 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common'
-import type { MembershipRole } from '@prisma/client'
 import { TenantContextGuard } from './tenant-context.guard'
+import { TenantContextStorage } from './tenant-context.storage'
 import type { RequestWithTenantContext } from './tenant-context.types'
 import type { TenantMembershipRepository } from './tenant-membership.repository'
 
@@ -16,18 +16,18 @@ describe('TenantContextGuard', () => {
   const tenantId = 'tenant-a'
   const userId = 'user-1'
 
-  it('hydrates tenant context from authenticated principal and active membership only', async () => {
+  it('hydrates tenant context on request and ALS from principal membership only', async () => {
     const memberships = {
       findActiveMembership: jest.fn().mockResolvedValue({
         id: 'membership-1',
         userId,
         tenantId,
-        role: 'OWNER' satisfies MembershipRole,
+        role: 'OWNER',
       }),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
     const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
     const request: RequestWithTenantContext & Record<string, unknown> = {
-      user: { id: userId, currentTenantId: tenantId },
+      user: { userId, currentTenantId: tenantId },
       body: { tenantId: 'tenant-b' },
       query: { tenantId: 'tenant-b' },
       headers: { 'x-tenant-id': 'tenant-b' },
@@ -42,6 +42,32 @@ describe('TenantContextGuard', () => {
       membershipId: 'membership-1',
       role: 'OWNER',
     })
+    expect(TenantContextStorage.get()).toEqual(request.tenantContext)
+  })
+
+  it('never reads tenantId from body/query/headers', async () => {
+    const memberships = {
+      findActiveMembership: jest.fn().mockResolvedValue({
+        id: 'membership-1',
+        userId,
+        tenantId,
+        role: 'OWNER',
+      }),
+    } as Pick<TenantMembershipRepository, 'findActiveMembership'>
+    const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
+
+    await guard.canActivate(
+      httpContext({
+        user: { userId, currentTenantId: tenantId },
+        body: { tenantId: 'forged' },
+        query: { tenantId: 'forged' },
+        params: { tenantId: 'forged' },
+        headers: { 'x-tenant-id': 'forged' },
+      }),
+    )
+
+    expect(memberships.findActiveMembership).toHaveBeenCalledWith(userId, tenantId)
+    expect(memberships.findActiveMembership).not.toHaveBeenCalledWith(userId, 'forged')
   })
 
   it('rejects requests without an authenticated tenant in context', async () => {
@@ -50,18 +76,20 @@ describe('TenantContextGuard', () => {
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
     const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
 
-    await expect(guard.canActivate(httpContext({ body: { tenantId } }))).rejects.toBeInstanceOf(UnauthorizedException)
+    await expect(guard.canActivate(httpContext({ body: { tenantId } }))).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    )
     expect(memberships.findActiveMembership).not.toHaveBeenCalled()
   })
 
-  it('rejects inactive or missing memberships', async () => {
+  it('rejects inactive or missing memberships with generic 401', async () => {
     const memberships = {
       findActiveMembership: jest.fn().mockResolvedValue(null),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
     const guard = new TenantContextGuard(memberships as TenantMembershipRepository)
 
     await expect(
-      guard.canActivate(httpContext({ user: { id: userId, currentTenantId: tenantId } })),
+      guard.canActivate(httpContext({ user: { userId, currentTenantId: tenantId } })),
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 })

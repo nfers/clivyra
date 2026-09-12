@@ -1,8 +1,15 @@
-import { Module } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule, type Type } from '@nestjs/common'
+import { APP_FILTER } from '@nestjs/core'
 import { ThrottlerModule } from '@nestjs/throttler'
+import { RequestContextMiddleware } from './common/request-context/request-context.middleware'
+import { TenantExceptionFilter } from './common/filters/tenant-exception.filter'
 import { HealthController } from './health.controller'
 import { PrismaModule } from './prisma/prisma.module'
 import { TenantModule } from './tenant/tenant.module'
+import { TestMembershipsController } from './test-support/test-memberships.controller'
+
+const testControllers: Type<unknown>[] =
+  process.env.NODE_ENV === 'test' ? [TestMembershipsController] : []
 
 @Module({
   imports: [
@@ -15,6 +22,16 @@ import { TenantModule } from './tenant/tenant.module'
       },
     ]),
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, ...testControllers],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: TenantExceptionFilter,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestContextMiddleware).forRoutes('*')
+  }
+}

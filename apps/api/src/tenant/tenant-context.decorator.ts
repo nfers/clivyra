@@ -1,6 +1,7 @@
 import { createParamDecorator, ExecutionContext, InternalServerErrorException } from '@nestjs/common'
 import type { Request } from 'express'
-import type { RequestWithTenantContext, TenantContext } from './tenant-context.types'
+import type { TenantContext } from '@clivyra/types'
+import type { RequestWithTenantContext } from './tenant-context.types'
 
 export const CurrentTenant = createParamDecorator((_data: unknown, context: ExecutionContext): TenantContext => {
   const request = context.switchToHttp().getRequest<Request & RequestWithTenantContext>()

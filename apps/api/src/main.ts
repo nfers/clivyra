@@ -2,12 +2,20 @@ import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
+import { AppLogger } from './common/logging/app-logger.service'
 
 const port = Number(process.env.API_PORT ?? 3001)
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error'] })
+  const logger = new AppLogger()
+  const app = await NestFactory.create(AppModule, { logger })
+
+  const httpAdapter = app.getHttpAdapter()
+  if (typeof httpAdapter.getInstance === 'function') {
+    const instance = httpAdapter.getInstance() as { set?: (key: string, value: unknown) => void }
+    instance.set?.('trust proxy', 1)
+  }
 
   app.use(helmet())
   app.enableCors({ origin: webOrigin, methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE'] })

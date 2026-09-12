@@ -11,7 +11,7 @@ async function main() {
 
   const seedTenantSlug = process.env.SEED_TENANT_SLUG ?? 'clivyra-demo'
   const seedTenantName = process.env.SEED_TENANT_NAME ?? 'Clivyra Demo'
-  const seedAdminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@clivyra.local'
+  const seedAdminEmail = (process.env.SEED_ADMIN_EMAIL ?? 'admin@clivyra.local').trim().toLowerCase()
   const seedAdminName = process.env.SEED_ADMIN_NAME ?? 'Clivyra Admin'
   const seedAdminPasswordHash = process.env.SEED_ADMIN_PASSWORD_HASH
 
@@ -37,14 +37,14 @@ async function main() {
 
   await prisma.membership.upsert({
     where: {
-      userId_tenantId: {
-        userId: admin.id,
+      tenantId_userId: {
         tenantId: tenant.id,
+        userId: admin.id,
       },
     },
     create: {
-      userId: admin.id,
       tenantId: tenant.id,
+      userId: admin.id,
       role: 'OWNER',
     },
     update: {
