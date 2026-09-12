@@ -13,7 +13,7 @@ function httpContext(request: RequestWithTenantContext & Record<string, unknown>
     }),
     getHandler: () => function handler() {},
     getClass: () => class TestController {},
-  } as ExecutionContext
+  } as unknown as ExecutionContext
 }
 
 function createGuard(
@@ -109,7 +109,7 @@ describe('TenantContextGuard', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 
-  it('skips membership resolution for @Public routes', async () => {
+  it('skips membership resolution for @Public routes without a principal', async () => {
     const memberships = {
       findActiveMembership: jest.fn(),
     } as Pick<TenantMembershipRepository, 'findActiveMembership'>
@@ -117,6 +117,26 @@ describe('TenantContextGuard', () => {
 
     await expect(guard.canActivate(httpContext({}))).resolves.toBe(true)
     expect(memberships.findActiveMembership).not.toHaveBeenCalled()
+  })
+
+  it('hydrates tenant context for @Public routes when a principal is already present', async () => {
+    const memberships = {
+      findActiveMembership: jest.fn().mockResolvedValue({
+        id: 'membership-1',
+        userId,
+        tenantId,
+        role: 'OWNER',
+        user: { passwordChangedAt: null, sessionsInvalidatedAt: null },
+      }),
+    } as Pick<TenantMembershipRepository, 'findActiveMembership'>
+    const guard = createGuard(memberships, { [IS_PUBLIC_KEY]: true })
+    const request: RequestWithTenantContext & Record<string, unknown> = {
+      user: { userId, currentTenantId: tenantId },
+    }
+
+    await expect(guard.canActivate(httpContext(request))).resolves.toBe(true)
+    expect(memberships.findActiveMembership).toHaveBeenCalledWith(userId, tenantId)
+    expect(request.tenantContext?.tenantId).toBe(tenantId)
   })
 
   it('skips membership resolution for @NoTenant routes', async () => {

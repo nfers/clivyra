@@ -15,7 +15,7 @@ function httpContext(request: Record<string, unknown>): ExecutionContext {
     }),
     getHandler: () => function handler() {},
     getClass: () => class TestController {},
-  } as ExecutionContext
+  } as unknown as ExecutionContext
 }
 
 function createGuard(overrides: Partial<Record<string, unknown>> = {}) {

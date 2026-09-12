@@ -66,7 +66,6 @@ export default function UsersSettingsPage() {
 
   useEffect(() => {
     void load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter])
 
   if (!can('users:read')) {

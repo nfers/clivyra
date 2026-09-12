@@ -7,7 +7,7 @@ import {
   assertSameOrigin,
   refreshCookieOptions,
   type AuthSessionResponse,
-} from '../../../../lib/session/cookies'
+} from '../../../../../lib/session/cookies'
 
 export async function POST(request: Request) {
   try {

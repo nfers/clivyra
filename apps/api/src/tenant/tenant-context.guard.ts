@@ -23,19 +23,25 @@ export class TenantContextGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ])
-    if (isPublic) {
-      return true
-    }
-
     const isNoTenant = this.reflector.getAllAndOverride<boolean>(IS_NO_TENANT_KEY, [
       context.getHandler(),
       context.getClass(),
     ])
+
+    const request = context.switchToHttp().getRequest<Request & RequestWithTenantContext>()
+
     if (isNoTenant) {
       return true
     }
 
-    const request = context.switchToHttp().getRequest<Request & RequestWithTenantContext>()
+    if (isPublic) {
+      // Global Public short-circuit. Local @UseGuards(TenantContextGuard) on a @Public
+      // test harness may still inject a principal — hydrate when present.
+      if (!request.user?.userId || !request.user?.currentTenantId) {
+        return true
+      }
+    }
+
     const principal = request.user
 
     if (!principal?.userId || !principal.currentTenantId) {

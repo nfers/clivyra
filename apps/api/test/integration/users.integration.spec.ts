@@ -223,8 +223,7 @@ describe('users & invitations (integration)', () => {
     })
     expect(deactivate.status).toBe(204)
 
-    const me = await request('GET', '/auth/me', { token: pro.accessToken })
-    // /auth/me is @NoTenant — still works without membership. Probe a tenant route.
+    // Tenant-scoped route must fail once membership is inactive.
     const users = await request('GET', '/auth/permissions', { token: pro.accessToken })
     expect(users.status).toBe(401)
 

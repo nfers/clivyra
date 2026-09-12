@@ -98,6 +98,7 @@ export class InvitationService {
 
     const invitation = await this.prisma.invitation.create({
       data: {
+        tenantId: ctx.tenantId,
         email,
         role: role as MembershipRole,
         tokenHash,

@@ -21,7 +21,7 @@ export class AuthInvitationsController {
 
   @Public()
   @Get(':token')
-  @Throttle(AUTH_THROTTLE.passwordResetRequest)
+  @Throttle(AUTH_THROTTLE.invitationPreview)
   preview(@Param('token') token: string) {
     return this.invitations.preview(token)
   }
@@ -29,7 +29,7 @@ export class AuthInvitationsController {
   @Public()
   @Post('accept')
   @HttpCode(201)
-  @Throttle(AUTH_THROTTLE.signup)
+  @Throttle(AUTH_THROTTLE.invitationAccept)
   accept(@Body() dto: AcceptInvitationDto, @Req() request: Request & RequestWithAuth) {
     return this.invitations.accept(dto, request)
   }

@@ -448,22 +448,24 @@ export class AuthService {
     dto: SwitchTenantDto,
     request: RequestWithAuth,
   ): Promise<AuthSessionResponse> {
-    const membership = await this.prisma.membership.findFirst({
-      where: {
-        userId,
-        tenantId: dto.tenantId,
-        isActive: true,
-        tenant: { isActive: true },
-        user: { isActive: true },
-      },
-      select: {
-        id: true,
-        role: true,
-        tenantId: true,
-        tenant: { select: { id: true, slug: true, name: true } },
-        user: { select: { id: true, email: true, name: true } },
-      },
-    })
+    const membership = await this.prisma.bypassTenant('auth-switch-tenant-lookup', () =>
+      this.prisma.membership.findFirst({
+        where: {
+          userId,
+          tenantId: dto.tenantId, // tenant-boundary: allow switch-tenant target — membership revalidated server-side
+          isActive: true,
+          tenant: { isActive: true },
+          user: { isActive: true },
+        },
+        select: {
+          id: true,
+          role: true,
+          tenantId: true,
+          tenant: { select: { id: true, slug: true, name: true } },
+          user: { select: { id: true, email: true, name: true } },
+        },
+      }),
+    )
 
     if (!membership) {
       throw new NotFoundException()
