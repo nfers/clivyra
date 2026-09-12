@@ -1,4 +1,4 @@
-import { proxyJson } from '../../../../../lib/session/api-proxy'
+import { proxyJson } from '../../../../lib/session/api-proxy'
 
 type Params = { params: Promise<{ id: string }> }
 

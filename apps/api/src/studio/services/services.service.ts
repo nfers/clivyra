@@ -31,6 +31,7 @@ export class ServicesCatalogService {
     try {
       const created = await this.prisma.service.create({
         data: {
+          tenantId: ctx.tenantId,
           name: dto.name.trim(),
           description: dto.description,
           durationMinutes: dto.durationMinutes,

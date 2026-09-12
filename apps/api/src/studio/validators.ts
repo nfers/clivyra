@@ -38,7 +38,7 @@ export function digitsOnly(value: string): string {
   return value.replace(/\D/g, '')
 }
 
-/** Mask CNPJ-like `**.***.***/0001-**` or generic trailing digits for CPF. */
+/** Mask CNPJ (branch visible) or generic trailing digits for CPF. */
 export function maskStudioDocument(documentType: string | null | undefined, digits: string): string {
   if (documentType === 'CNPJ' && digits.length === 14) {
     return `**.***.***/${digits.slice(8, 12)}-**`

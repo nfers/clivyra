@@ -110,6 +110,7 @@ export class ProfessionalsService {
     try {
       const created = await this.prisma.professional.create({
         data: {
+          tenantId: ctx.tenantId,
           displayName: dto.displayName.trim(),
           fullName: dto.fullName?.trim(),
           councilType: activation.clearCouncil ? null : ((dto.councilType as CouncilType | undefined) ?? null),

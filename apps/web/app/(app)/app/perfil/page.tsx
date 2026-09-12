@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { SPECIALTIES, type ProfessionalView } from '@clivyra/types'
-import { usePermissions } from '../../../lib/session/SessionProvider'
+import { usePermissions } from '../../../../lib/session/SessionProvider'
 
 export default function ProfilePage() {
   const { can } = usePermissions()

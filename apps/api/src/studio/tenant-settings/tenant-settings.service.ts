@@ -1,9 +1,7 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common'
 import type { TenantContext, TenantSettingsView } from '@clivyra/types'
 import { hasPermission } from '@clivyra/types'

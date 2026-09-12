@@ -4,11 +4,6 @@ import { PrismaClient } from '@prisma/client'
 import { disconnectFixtures, resetFixtures, type IntegrationFixtures } from './setup/fixtures'
 import { createTestApp, type TestApp } from './setup/test-app'
 
-const API_HEADERS = {
-  'content-type': 'application/json',
-  'x-client': 'api',
-}
-
 describe('studio setup (integration)', () => {
   let app: TestApp
   let baseUrl: string

@@ -7,17 +7,21 @@ import type { FileStoragePort, FileStoragePutInput } from './file-storage.port'
  */
 @Injectable()
 export class OciFileStorage implements FileStoragePort {
-  async put(_input: FileStoragePutInput): Promise<void> {
+  async put(input: FileStoragePutInput): Promise<void> {
+    void input
     throw new Error(
       'OCI file storage is not configured. Set FILE_STORAGE_DRIVER=local for development or provide OCI credentials.',
     )
   }
 
-  async getSignedUrl(_key: string, _ttlSeconds: number): Promise<string> {
+  async getSignedUrl(key: string, ttlSeconds: number): Promise<string> {
+    void key
+    void ttlSeconds
     throw new Error('OCI file storage is not configured')
   }
 
-  async delete(_key: string): Promise<void> {
+  async delete(key: string): Promise<void> {
+    void key
     throw new Error('OCI file storage is not configured')
   }
 }

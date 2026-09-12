@@ -45,6 +45,9 @@ Documentação:
 - Auth/sessão: [`docs/auth-session.md`](docs/auth-session.md)
 - RBAC: [`docs/rbac.md`](docs/rbac.md)
 - Auditoria: [`docs/audit-trail.md`](docs/audit-trail.md)
+- Studio / profissionais: [`docs/studio-setup.md`](docs/studio-setup.md)
+
+Storage local (dev): `FILE_STORAGE_DRIVER=local` e `FILE_STORAGE_LOCAL_DIR` (ver `.env.example`). OCI Object Storage é stub até credenciais (`infra/oci/README.md`).
 
 ## Segurança
 

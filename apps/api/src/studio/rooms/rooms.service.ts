@@ -25,6 +25,7 @@ export class RoomsService {
     try {
       const created = await this.prisma.room.create({
         data: {
+          tenantId: ctx.tenantId,
           name: dto.name.trim(),
           capacity: dto.capacity ?? 1,
         },

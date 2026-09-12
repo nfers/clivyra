@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { ACCESS_COOKIE, apiBaseUrl, assertSameOrigin } from '../../session/cookies'
+import { ACCESS_COOKIE, apiBaseUrl, assertSameOrigin } from './cookies'
 
 export async function proxyJson(request: Request, path: string, init?: RequestInit) {
   try {
