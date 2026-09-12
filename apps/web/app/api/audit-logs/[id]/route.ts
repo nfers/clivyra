@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { ACCESS_COOKIE, apiBaseUrl, assertSameOrigin } from '../../../../../lib/session/cookies'
+import { ACCESS_COOKIE, apiBaseUrl, assertSameOrigin } from '../../../../lib/session/cookies'
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {

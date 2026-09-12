@@ -27,6 +27,13 @@ function compactMetadata(
   return Object.keys(out).length > 0 ? out : undefined
 }
 
+const pendingWrites: Promise<unknown>[] = []
+
+/** Await in-flight audit writes (integration fixtures). */
+export async function flushPendingAuthAuditWrites(): Promise<void> {
+  await Promise.allSettled(pendingWrites.splice(0, pendingWrites.length))
+}
+
 @Injectable()
 export class AuthEventsAuditAdapter implements AuthEventsPort {
   private readonly logger = new AppLogger()
@@ -44,7 +51,7 @@ export class AuthEventsAuditAdapter implements AuthEventsPort {
     const mapped = this.mapEvent(event, payload)
     if (!mapped) return
 
-    void this.audit.recordAccess({
+    const write = this.audit.recordAccess({
       action: mapped.action,
       entityType: mapped.entityType,
       entityId: mapped.entityId,
@@ -52,6 +59,11 @@ export class AuthEventsAuditAdapter implements AuthEventsPort {
       metadata: compactMetadata(mapped.metadata),
       changes: mapped.changes,
       tenantId: mapped.tenantId,
+    })
+    pendingWrites.push(write)
+    void write.finally(() => {
+      const index = pendingWrites.indexOf(write)
+      if (index >= 0) pendingWrites.splice(index, 1)
     })
   }
 

@@ -26,13 +26,16 @@ export function resolveAuditContext(options?: {
     if (!options.actor.reason?.trim()) {
       throw new AuditValidationError('SYSTEM actor requires reason')
     }
+    if (!options.tenantId?.trim()) {
+      throw new AuditValidationError('SYSTEM actor requires tenantId')
+    }
     const request = RequestContextStorage.get()
     return {
       actorType: 'SYSTEM',
       actorUserId: null,
       actorMembershipId: null,
       actorRole: null,
-      tenantId: options.tenantId ?? TenantContextStorage.get()?.tenantId ?? null,
+      tenantId: options.tenantId,
       requestId: request?.requestId ?? null,
       ipHash: request?.ip ? (hashIp(request.ip) ?? null) : null,
       userAgent: truncateUserAgent(request?.userAgent) ?? null,

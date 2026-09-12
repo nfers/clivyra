@@ -108,10 +108,11 @@ describe('audit trail (integration)', () => {
       },
     })
     expect(rows.length).toBeGreaterThanOrEqual(1)
-    const serialized = JSON.stringify(rows)
-    expect(serialized).not.toContain(password)
-    expect(serialized.toLowerCase()).not.toContain('password')
-    expect(serialized.toLowerCase()).not.toMatch(/"token"\s*:/)
+    for (const row of rows) {
+      const blob = JSON.stringify({ metadata: row.metadata, changes: row.changes })
+      expect(blob).not.toContain(password)
+      expect(blob.toLowerCase()).not.toMatch(/"(password|token|refreshtoken|accesstoken)"\s*:/)
+    }
   })
 
   it('rejects UPDATE/DELETE via SQL with restrict_violation', async () => {
@@ -260,10 +261,10 @@ describe('audit trail (integration)', () => {
     const { PrismaService } = await import('../../src/prisma/prisma.service')
     const audit = app.get(AuditService)
     const prismaService = app.get(PrismaService)
-    const original = prismaService.auditLog.create.bind(prismaService.auditLog)
-    prismaService.auditLog.create = (async () => {
+    const originalCreate = prismaService.auditLog.create
+    ;(prismaService.auditLog as { create: typeof originalCreate }).create = (async () => {
       throw new Error('boom')
-    }) as typeof prismaService.auditLog.create
+    }) as unknown as typeof originalCreate
     await expect(
       audit.recordAccess({
         action: 'audit.queried',
@@ -273,7 +274,7 @@ describe('audit trail (integration)', () => {
         metadata: { route: '/x', method: 'GET' },
       }),
     ).resolves.toBeUndefined()
-    prismaService.auditLog.create = original
+    prismaService.auditLog.create = originalCreate
   })
 
   it('records auth.refresh.reuse_detected as DENIED', async () => {

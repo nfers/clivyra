@@ -50,10 +50,10 @@ describe('AuditService.record', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
-  it('errors without context and without SYSTEM actor', () => {
-    expect(() =>
-      RequestContextStorage.run({ scopeId: 's2', requestId: 'r2' }, () => resolveAuditContext()),
-    ).toThrow(AuditValidationError)
+  it('errors without tenant context and without SYSTEM actor', () => {
+    const spy = jest.spyOn(TenantContextStorage, 'get').mockReturnValue(undefined)
+    expect(() => resolveAuditContext()).toThrow(AuditValidationError)
+    spy.mockRestore()
   })
 
   it('errors when SYSTEM actor has no tenantId', async () => {
@@ -65,6 +65,6 @@ describe('AuditService.record', () => {
         actor: { type: 'SYSTEM', reason: 'job' },
         metadata: { reason: 'job' },
       }),
-    ).rejects.toThrow(/tenantId/)
+    ).rejects.toThrow(AuditValidationError)
   })
 })

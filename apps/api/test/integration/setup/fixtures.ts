@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { flushPendingAuthAuditWrites } from '../../../src/audit/auth-events.audit-adapter'
 import { PasswordHasherService } from '../../../src/auth/password-hasher.service'
 
 export interface IntegrationFixtures {
@@ -18,6 +19,7 @@ const hasher = PasswordHasherService.forTest(
 export const FIXTURE_PASSWORD = 'CorrectHorse1Battery!'
 
 export async function resetFixtures(): Promise<IntegrationFixtures> {
+  await flushPendingAuthAuditWrites()
   // TRUNCATE bypasses DELETE triggers (append-only AuditLog).
   await prisma.$executeRawUnsafe('TRUNCATE TABLE "AuditLog"')
   await prisma.refreshSession.deleteMany()
@@ -25,6 +27,8 @@ export async function resetFixtures(): Promise<IntegrationFixtures> {
   await prisma.invitation.deleteMany()
   await prisma.membership.deleteMany()
   await prisma.user.deleteMany()
+  await flushPendingAuthAuditWrites()
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "AuditLog"')
   await prisma.tenant.deleteMany()
 
   const passwordHash = await hasher.hash(FIXTURE_PASSWORD)

@@ -56,11 +56,13 @@ export class PasswordResetService {
         text: template.text,
       })
 
-      const memberships = await this.prisma.membership.findMany({
-        where: { userId: user.id, isActive: true, tenant: { isActive: true } },
-        select: { tenantId: true },
-        take: 2,
-      })
+      const memberships = await this.prisma.bypassTenant('auth-password-reset-tenant', () =>
+        this.prisma.membership.findMany({
+          where: { userId: user.id, isActive: true, tenant: { isActive: true } },
+          select: { tenantId: true },
+          take: 2,
+        }),
+      )
       this.events.emit('auth.password.reset_requested', {
         userId: user.id,
         tenantId: memberships.length === 1 ? memberships[0]!.tenantId : undefined,
@@ -124,11 +126,13 @@ export class PasswordResetService {
       text: notice.text,
     })
 
-    const memberships = await this.prisma.membership.findMany({
-      where: { userId: reset.userId, isActive: true, tenant: { isActive: true } },
-      select: { tenantId: true },
-      take: 2,
-    })
+    const memberships = await this.prisma.bypassTenant('auth-password-changed-tenant', () =>
+      this.prisma.membership.findMany({
+        where: { userId: reset.userId, isActive: true, tenant: { isActive: true } },
+        select: { tenantId: true },
+        take: 2,
+      }),
+    )
     this.events.emit('auth.password.changed', {
       userId: reset.userId,
       tenantId: memberships.length === 1 ? memberships[0]!.tenantId : undefined,
