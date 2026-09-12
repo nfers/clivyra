@@ -104,7 +104,17 @@ export class UserDataExporter implements DataExporterPort {
       },
       {
         section: 'consents',
-        data: consents.map((c) => ({
+        data: consents.map(
+          (c: {
+            id: string
+            status: string
+            term: { type: string; title: string }
+            termVersion: number
+            source: string
+            grantedAt: Date | null
+            revokedAt: Date | null
+            createdAt: Date
+          }) => ({
           id: c.id,
           status: c.status,
           termType: c.term.type,
@@ -114,7 +124,8 @@ export class UserDataExporter implements DataExporterPort {
           grantedAt: c.grantedAt?.toISOString() ?? null,
           revokedAt: c.revokedAt?.toISOString() ?? null,
           createdAt: c.createdAt.toISOString(),
-        })),
+        }),
+        ),
       },
       {
         section: 'audit',
