@@ -7,10 +7,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum MembershipRole {
+  OWNER
+  ADMIN
+  PROFESSIONAL
+  RECEPTION
+}
+
 model SystemMetadata {
   id        String   @id @default(cuid())
   key       String   @unique
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Tenant {
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+
+  @@index([isActive])
+}
+
+/// Entidade GLOBAL (não tenant-owned). Uma pessoa pode pertencer a vários tenants via Membership.
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique // normalizado lower-case na aplicação
+  name         String
+  passwordHash String? // preenchido em CLI-12
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  memberships  Membership[]
+
+  @@index([isActive])
+}
+
+model Membership {
+  id        String         @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      MembershipRole
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, role])
+  @@index([tenantId, isActive])
+  @@index([userId, isActive])
 }

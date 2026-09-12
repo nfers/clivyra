@@ -24,7 +24,18 @@ Web: `http://localhost:3000`. API: `http://localhost:3001/health`.
 
 ## Qualidade
 
-Execute antes de abrir PR: `npm run lint`, `npm run typecheck`, `npm test` e `npm run test:e2e`.
+Execute antes de abrir PR:
+
+- `npm run lint`
+- `npm run check:standards`
+- `npm run typecheck`
+- `npm test`
+- `npm run test:integration` (requer Postgres e `DATABASE_URL`)
+- `npm run test:e2e`
+
+Migrations em CI/local deploy: `npm run db:migrate:deploy`.
+
+Documentação de tenant: [`docs/tenant-context.md`](docs/tenant-context.md).
 
 ## Segurança
 
