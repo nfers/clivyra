@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@clivyra/types": "*",
-    "@nestjs/common": "^11.2.3",
+    "@nestjs/common": "^12.0.1",
     "@nestjs/core": "^11.2.3",
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/throttler": "^6.3.0",
