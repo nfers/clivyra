@@ -11,13 +11,18 @@ export default function RecoverPasswordPage() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setPending(true)
-    await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:3001'}/auth/password-reset/request`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
-    setPending(false)
-    setDone(true)
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:3001'}/auth/password-reset/request`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+    } catch {
+      // Still show the generic confirmation to avoid user enumeration UX differences.
+    } finally {
+      setPending(false)
+      setDone(true)
+    }
   }
 
   return (
