@@ -6,21 +6,28 @@ import {
   HttpStatus,
 } from '@nestjs/common'
 import type { Response } from 'express'
-import { RequestContextStorage } from '../common/request-context/request-context.storage'
+import { AppLogger } from '../logging/app-logger.service'
+import { RequestContextStorage } from '../request-context/request-context.storage'
 import {
   TenantContextMissingError,
   TenantOwnedRecordNotFoundError,
   TenantScopeViolationError,
-} from '../prisma/tenant-scope.errors'
+} from '../../prisma/tenant-scope.errors'
 
 @Catch()
 export class TenantExceptionFilter implements ExceptionFilter {
+  private readonly logger = new AppLogger()
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp()
     const response = ctx.getResponse<Response>()
     const requestId = RequestContextStorage.get()?.requestId
+    const name = exception instanceof Error ? exception.name : 'UnknownError'
 
-    if (exception instanceof TenantOwnedRecordNotFoundError) {
+    if (
+      exception instanceof TenantOwnedRecordNotFoundError ||
+      name === 'TenantOwnedRecordNotFoundError'
+    ) {
       response.status(HttpStatus.NOT_FOUND).json({
         statusCode: HttpStatus.NOT_FOUND,
         error: 'Not Found',
@@ -30,7 +37,7 @@ export class TenantExceptionFilter implements ExceptionFilter {
       return
     }
 
-    if (exception instanceof TenantScopeViolationError) {
+    if (exception instanceof TenantScopeViolationError || name === 'TenantScopeViolationError') {
       response.status(HttpStatus.BAD_REQUEST).json({
         statusCode: HttpStatus.BAD_REQUEST,
         error: 'Bad Request',
@@ -40,7 +47,11 @@ export class TenantExceptionFilter implements ExceptionFilter {
       return
     }
 
-    if (exception instanceof TenantContextMissingError) {
+    if (exception instanceof TenantContextMissingError || name === 'TenantContextMissingError') {
+      this.logger.error('tenant_context_missing', {
+        requestId,
+        err: exception instanceof Error ? exception.message : String(exception),
+      })
       response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         error: 'Internal Server Error',
@@ -60,6 +71,12 @@ export class TenantExceptionFilter implements ExceptionFilter {
       response.status(status).json(body)
       return
     }
+
+    this.logger.error('unhandled_exception', {
+      requestId,
+      name,
+      err: exception instanceof Error ? exception.message : String(exception),
+    })
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

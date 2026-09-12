@@ -16,7 +16,7 @@
     "lint": "eslint .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "test:integration": "NODE_ENV=test jest --config apps/api/jest.integration.config.cjs --runInBand",
+    "test:integration": "npm run test:integration --workspace @clivyra/api",
     "test:e2e": "playwright test",
     "db:generate": "npm run prisma:generate --workspace @clivyra/api",
     "db:migrate": "npm run prisma:migrate --workspace @clivyra/api",
@@ -38,6 +38,10 @@
   "overrides": {
     "deepmerge-ts": "8.0.2",
     "multer": "2.3.0",
+    "@nestjs/common": "11.2.3",
+    "@nestjs/core": "11.2.3",
+    "@nestjs/platform-express": "11.2.3",
+    "@nestjs/testing": "11.2.3",
     "@prisma/config": {
       "deepmerge-ts": "8.0.2"
     }

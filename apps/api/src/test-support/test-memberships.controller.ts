@@ -71,12 +71,16 @@ export class TestMembershipsController {
   async create(@CurrentTenant() tenant: TenantContext, @Body() body: CreateMembershipDto) {
     void tenant
     try {
+      const data: { userId: string; role: Role; tenantId?: string } = {
+        userId: body.userId,
+        role: body.role,
+      }
+      if (body.tenantId !== undefined) {
+        data.tenantId = body.tenantId
+      }
       return await this.prisma.membership.create({
-        data: {
-          userId: body.userId,
-          role: body.role,
-          ...(body.tenantId !== undefined ? { tenantId: body.tenantId } : {}),
-        },
+        // Extension overwrites/validates tenantId; optional client value is intentional for isolation tests.
+        data: data as { userId: string; role: Role; tenantId: string },
         select: {
           id: true,
           tenantId: true,

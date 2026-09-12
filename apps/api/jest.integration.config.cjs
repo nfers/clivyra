@@ -7,4 +7,5 @@ module.exports = {
   globalSetup: '<rootDir>/test/integration/setup/global-setup.cjs',
   testTimeout: 60_000,
   maxWorkers: 1,
+  forceExit: true,
 }

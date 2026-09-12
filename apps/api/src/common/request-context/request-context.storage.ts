@@ -8,6 +8,10 @@ export const RequestContextStorage = {
     return storage.run(context, fn)
   },
 
+  enterWith(context: RequestContext): void {
+    storage.enterWith(context)
+  },
+
   get(): RequestContext | undefined {
     return storage.getStore()
   },

@@ -8,32 +8,19 @@ function createExtendedPrismaClient() {
 
 export type ExtendedPrismaClient = ReturnType<typeof createExtendedPrismaClient>
 
-const EXTENDED_KEYS = new Set(['onModuleInit', 'onModuleDestroy', 'then'])
+const PrismaClientHost = class {
+  constructor() {
+    return createExtendedPrismaClient()
+  }
+} as unknown as new () => ExtendedPrismaClient
 
 @Injectable()
-export class PrismaService implements OnModuleInit, OnModuleDestroy {
-  private readonly client: ExtendedPrismaClient = createExtendedPrismaClient()
-
-  constructor() {
-    // Expose the extended Prisma client (incl. bypassTenant) as this service.
-    return new Proxy(this, {
-      get: (target, property, receiver) => {
-        if (EXTENDED_KEYS.has(String(property)) || property in target) {
-          return Reflect.get(target, property, receiver)
-        }
-        const value = Reflect.get(target.client as object, property)
-        return typeof value === 'function' ? value.bind(target.client) : value
-      },
-    }) as PrismaService
-  }
-
+export class PrismaService extends PrismaClientHost implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
-    await this.client.$connect()
+    await this.$connect()
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.client.$disconnect()
+    await this.$disconnect()
   }
 }
-
-export interface PrismaService extends ExtendedPrismaClient {}

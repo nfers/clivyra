@@ -31,6 +31,7 @@ describe('RequestContextMiddleware', () => {
       setHeader: (key: string, value: string) => {
         headers[key] = value
       },
+      on: jest.fn(),
     } as unknown as Response
 
     let seen: string | undefined

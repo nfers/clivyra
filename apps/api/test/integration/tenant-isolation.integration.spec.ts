@@ -1,13 +1,12 @@
-import type { INestApplication } from '@nestjs/common'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from '@jest/globals'
 import { PrismaClient } from '@prisma/client'
 import { disconnectFixtures, resetFixtures, type IntegrationFixtures } from './setup/fixtures'
-import { createTestApp } from './setup/test-app'
-import { TEST_PRINCIPAL_HEADER } from '../../../src/test-support/test-principal.guard'
+import { createTestApp, type TestApp } from './setup/test-app'
+import { TEST_PRINCIPAL_HEADER } from '../../src/test-support/test-principal.guard'
 
 describe('tenant isolation (integration)', () => {
-  let app: INestApplication
+  let app: TestApp
   let baseUrl: string
   let fixtures: IntegrationFixtures
   const prisma = new PrismaClient()

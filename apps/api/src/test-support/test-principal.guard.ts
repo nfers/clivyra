@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Request } from 'express'
 import type { AuthenticatedPrincipal } from '@clivyra/types'
-import type { RequestWithTenantContext } from '../../tenant/tenant-context.types'
+import type { RequestWithTenantContext } from '../tenant/tenant-context.types'
 
 export const TEST_PRINCIPAL_HEADER = 'x-test-principal'
 

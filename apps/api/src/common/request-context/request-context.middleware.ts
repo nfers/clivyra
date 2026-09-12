@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import type { NextFunction, Request, Response } from 'express'
+import { TenantContextStorage } from '../../tenant/tenant-context.storage'
 import { RequestContextStorage } from './request-context.storage'
 import type { RequestContext } from './request-context.types'
 
@@ -35,6 +36,9 @@ export class RequestContextMiddleware implements NestMiddleware {
 
     res.setHeader(REQUEST_ID_HEADER, requestId)
 
-    RequestContextStorage.run(context, () => next())
+    // enterWith (not run) so Nest async guards/handlers stay in the same store.
+    RequestContextStorage.enterWith(context)
+    res.on('finish', () => TenantContextStorage.clear(requestId))
+    next()
   }
 }

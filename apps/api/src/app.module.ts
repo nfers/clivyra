@@ -1,7 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule, type Type } from '@nestjs/common'
-import { APP_FILTER } from '@nestjs/core'
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core'
 import { ThrottlerModule } from '@nestjs/throttler'
 import { RequestContextMiddleware } from './common/request-context/request-context.middleware'
+import { ContextAlsInterceptor } from './common/request-context/context-als.interceptor'
 import { TenantExceptionFilter } from './common/filters/tenant-exception.filter'
 import { HealthController } from './health.controller'
 import { PrismaModule } from './prisma/prisma.module'
@@ -27,6 +28,10 @@ const testControllers: Type<unknown>[] =
     {
       provide: APP_FILTER,
       useClass: TenantExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ContextAlsInterceptor,
     },
   ],
 })

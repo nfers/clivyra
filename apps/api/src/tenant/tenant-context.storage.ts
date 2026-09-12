@@ -1,30 +1,58 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { TenantContext } from '@clivyra/types'
+import { RequestContextStorage } from '../common/request-context/request-context.storage'
 
-const storage = new AsyncLocalStorage<TenantContext>()
+const fallbackAls = new AsyncLocalStorage<TenantContext>()
 
+/** RequestId → tenant map bridges ALS gaps after async guard awaits. */
+const tenantByRequestId = new Map<string, TenantContext>()
+
+/**
+ * Tenant context ALS facade.
+ * Nest guards cannot wrap the handler in `run()`, so the request middleware
+ * owns the AsyncLocalStorage store and the guard mutates `tenantContext` on it
+ * (`enterWith` pattern from CLI-11 spec). A requestId-indexed fallback covers
+ * Prisma calls after async boundaries that drop `enterWith` bindings.
+ */
 export const TenantContextStorage = {
-  run<T>(context: TenantContext, fn: () => T): T {
-    return storage.run(context, fn)
+  enterWith(context: TenantContext): void {
+    const request = RequestContextStorage.get()
+    if (request) {
+      request.tenantContext = context
+      tenantByRequestId.set(request.requestId, context)
+    }
+    fallbackAls.enterWith(context)
   },
 
-  /**
-   * Nest guards cannot wrap the handler in `run()`. Call this after the
-   * request ALS store is already established by RequestContextMiddleware.
-   */
-  enterWith(context: TenantContext): void {
-    storage.enterWith(context)
+  run<T>(context: TenantContext, fn: () => T): T {
+    return fallbackAls.run(context, fn)
   },
 
   get(): TenantContext | undefined {
-    return storage.getStore()
+    const request = RequestContextStorage.get()
+    if (request?.tenantContext) {
+      return request.tenantContext
+    }
+    if (request?.requestId) {
+      const byRequest = tenantByRequestId.get(request.requestId)
+      if (byRequest) {
+        return byRequest
+      }
+    }
+    return fallbackAls.getStore()
   },
 
   require(): TenantContext {
-    const context = storage.getStore()
+    const context = TenantContextStorage.get()
     if (!context) {
       throw new Error('Tenant context is not available in AsyncLocalStorage')
     }
     return context
+  },
+
+  clear(requestId?: string): void {
+    if (requestId) {
+      tenantByRequestId.delete(requestId)
+    }
   },
 }

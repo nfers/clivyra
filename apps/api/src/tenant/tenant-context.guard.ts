@@ -1,11 +1,7 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Request } from 'express'
 import { AppLogger } from '../common/logging/app-logger.service'
+import { RequestContextStorage } from '../common/request-context/request-context.storage'
 import { TenantContextStorage } from './tenant-context.storage'
 import type { RequestWithTenantContext } from './tenant-context.types'
 import { TenantMembershipRepository } from './tenant-membership.repository'
@@ -49,6 +45,12 @@ export class TenantContextGuard implements CanActivate {
     }
 
     request.tenantContext = tenantContext
+
+    // Prefer mutating the request ALS store; also enterWith for fallback contexts.
+    const requestStore = RequestContextStorage.get()
+    if (requestStore) {
+      requestStore.tenantContext = tenantContext
+    }
     TenantContextStorage.enterWith(tenantContext)
 
     return true

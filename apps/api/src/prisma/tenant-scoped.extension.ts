@@ -15,6 +15,8 @@ interface BypassStore {
 }
 
 const bypassStorage = new AsyncLocalStorage<BypassStore>()
+/** requestId-keyed bypass — Prisma query hooks can drop ALS across engine boundaries. */
+const bypassByRequestId = new Map<string, string>()
 const logger = new AppLogger()
 
 type WhereInput = Record<string, unknown>
@@ -93,6 +95,14 @@ function applyTenantToArgs(operation: string, args: QueryArgs, tenantId: string)
   return { ...args, where: andWhere(args.where, tenantId) }
 }
 
+function isBypassActive(): boolean {
+  if (bypassStorage.getStore()) {
+    return true
+  }
+  const requestId = RequestContextStorage.get()?.requestId
+  return Boolean(requestId && bypassByRequestId.has(requestId))
+}
+
 export function createTenantScopedExtension() {
   return Prisma.defineExtension((client) =>
     client.$extends({
@@ -105,7 +115,16 @@ export function createTenantScopedExtension() {
             requestId,
             metric: 'tenant_scope.bypass',
           })
-          return bypassStorage.run({ reason }, fn)
+          if (requestId) {
+            bypassByRequestId.set(requestId, reason)
+          }
+          try {
+            return await bypassStorage.run({ reason }, fn)
+          } finally {
+            if (requestId) {
+              bypassByRequestId.delete(requestId)
+            }
+          }
         },
       },
       query: {
@@ -119,7 +138,7 @@ export function createTenantScopedExtension() {
               throw new TenantContextMissingError(`Model ${model} is not classified as global or tenant-owned`)
             }
 
-            if (bypassStorage.getStore()) {
+            if (isBypassActive()) {
               return query(args)
             }
 
@@ -143,32 +162,37 @@ export function createTenantScopedExtension() {
             }
 
             if (operation === 'update') {
-              const result = await delegate.updateMany({
-                where: andWhere((args as QueryArgs).where, tenant.tenantId),
-                data: (args as QueryArgs).data,
-              })
-              if (result.count === 0) {
-                throw new TenantOwnedRecordNotFoundError()
-              }
-              return delegate.findFirst({
-                where: andWhere((args as QueryArgs).where, tenant.tenantId),
+              // Parent-client delegates still re-enter this extension; use bypass for the mutation helpers.
+              return bypassStorage.run({ reason: 'tenant-scoped-update' }, async () => {
+                const updateResult = await delegate.updateMany({
+                  where: andWhere((args as QueryArgs).where, tenant.tenantId),
+                  data: (args as QueryArgs).data,
+                })
+                if (updateResult.count === 0) {
+                  throw new TenantOwnedRecordNotFoundError()
+                }
+                return delegate.findFirst({
+                  where: andWhere((args as QueryArgs).where, tenant.tenantId),
+                })
               })
             }
 
             if (operation === 'delete') {
-              const existing = await delegate.findFirst({
-                where: andWhere((args as QueryArgs).where, tenant.tenantId),
+              return bypassStorage.run({ reason: 'tenant-scoped-delete' }, async () => {
+                const existing = await delegate.findFirst({
+                  where: andWhere((args as QueryArgs).where, tenant.tenantId),
+                })
+                if (!existing) {
+                  throw new TenantOwnedRecordNotFoundError()
+                }
+                const result = await delegate.deleteMany({
+                  where: andWhere((args as QueryArgs).where, tenant.tenantId),
+                })
+                if (result.count === 0) {
+                  throw new TenantOwnedRecordNotFoundError()
+                }
+                return existing
               })
-              if (!existing) {
-                throw new TenantOwnedRecordNotFoundError()
-              }
-              const result = await delegate.deleteMany({
-                where: andWhere((args as QueryArgs).where, tenant.tenantId),
-              })
-              if (result.count === 0) {
-                throw new TenantOwnedRecordNotFoundError()
-              }
-              return existing
             }
 
             return query(scopedArgs)
