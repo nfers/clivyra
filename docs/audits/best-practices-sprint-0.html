@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clivyra - Auditoria Best Practices Sprint 0</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --ink: #0f172a;
+        --muted: #475569;
+        --line: #cbd5e1;
+        --ok: #166534;
+        --warn: #92400e;
+        --bad: #991b1b;
+        --accent: #14532d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 40px 20px 56px;
+      }
+
+      header,
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 24px;
+        margin-bottom: 18px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+        margin: 0 0 12px;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 3rem);
+      }
+
+      h2 {
+        font-size: 1.35rem;
+      }
+
+      h3 {
+        font-size: 1.05rem;
+      }
+
+      p {
+        margin: 0 0 12px;
+      }
+
+      ul {
+        margin: 8px 0 0;
+        padding-left: 22px;
+      }
+
+      code,
+      pre {
+        font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      }
+
+      pre {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 14px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f1f5f9;
+      }
+
+      .meta {
+        color: var(--muted);
+      }
+
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 10px;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .ok {
+        background: #dcfce7;
+        color: var(--ok);
+      }
+
+      .warn {
+        background: #fef3c7;
+        color: var(--warn);
+      }
+
+      .bad {
+        background: #fee2e2;
+        color: var(--bad);
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 1.8rem;
+      }
+
+      a {
+        color: var(--accent);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="meta">Clivyra MVP - Auditoria Best Practices - Sprint 0</p>
+        <h1>Auditoria de segurança, compatibilidade e qualidade</h1>
+        <p>
+          Este relatório consolida a avaliação baseada na skill <code>best-practices</code>,
+          com foco em headers de segurança, dependências, padrões inseguros de código,
+          compatibilidade HTML/PWA e qualidade operacional da base implementada.
+        </p>
+        <div class="summary-grid">
+          <div class="metric"><strong>1</strong> bug aberto</div>
+          <div class="metric"><strong>0</strong> vulnerabilidades no <code>npm audit</code></div>
+          <div class="metric"><strong>API</strong> com Helmet ativo</div>
+          <div class="metric"><strong>Web</strong> requer CSP/HSTS</div>
+        </div>
+      </header>
+
+      <section>
+        <h2>Resultado executivo</h2>
+        <p>
+          A implementação da Sprint 0 está saudável para uma base inicial: audit de
+          dependências limpo, API com Helmet, PWA respondendo, HTML sem padrões óbvios
+          de XSS e pipeline de lint/typecheck/test/build/E2E funcionando.
+        </p>
+        <p>
+          A não conformidade relevante está na aplicação Web: ela ainda não define
+          <code>Content-Security-Policy</code>, não aplica <code>Strict-Transport-Security</code>
+          para produção e expõe <code>X-Powered-By: Next.js</code>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Achados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Área</th>
+              <th>Achado</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge bad">Bug</span></td>
+              <td>Web security headers</td>
+              <td>
+                A Web não retorna CSP/HSTS e expõe <code>X-Powered-By: Next.js</code>.
+              </td>
+              <td>
+                Bug Linear:
+                <a href="https://linear.app/clivyra/issue/CLI-61/bug-web-nao-aplica-csphsts-e-expoe-x-powered-by">CLI-61</a>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="badge ok">Ok</span></td>
+              <td>Dependency audit</td>
+              <td><code>npm audit</code> retornou <code>found 0 vulnerabilities</code>.</td>
+              <td>Manter audit no CI.</td>
+            </tr>
+            <tr>
+              <td><span class="badge ok">Ok</span></td>
+              <td>API security headers</td>
+              <td>
+                API retorna CSP, HSTS, referrer policy, nosniff e headers do Helmet em
+                <code>/health</code>.
+              </td>
+              <td>Revalidar ao adicionar rotas autenticadas.</td>
+            </tr>
+            <tr>
+              <td><span class="badge ok">Ok</span></td>
+              <td>Unsafe DOM APIs</td>
+              <td>Não foram encontrados usos de <code>innerHTML</code> ou <code>document.write</code>.</td>
+              <td>Manter lint/review para fluxos futuros.</td>
+            </tr>
+            <tr>
+              <td><span class="badge warn">Atenção</span></td>
+              <td>Runtime local</td>
+              <td>
+                Compose usa servidores de desenvolvimento, aceitável para ambiente local.
+                Não deve ser promovido como runtime de produção.
+              </td>
+              <td>Definir imagem/runtime de produção em issue futura de deploy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Evidências</h2>
+        <h3>Web headers</h3>
+        <pre><code>HTTP/1.1 200 OK
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+X-Powered-By: Next.js
+
+Ausente: Content-Security-Policy
+Ausente: Strict-Transport-Security</code></pre>
+
+        <h3>API headers</h3>
+        <pre><code>Content-Security-Policy: default-src 'self'; ...
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Access-Control-Allow-Origin: http://localhost:3000</code></pre>
+
+        <h3>Comandos executados</h3>
+        <ul>
+          <li><code>npm audit</code></li>
+          <li><code>curl --head http://127.0.0.1:3000</code></li>
+          <li><code>curl --head http://127.0.0.1:3001/health</code></li>
+          <li><code>rg innerHTML|document.write|console.|sourceMap|security headers</code></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Critérios para fechar CLI-61</h2>
+        <ul>
+          <li>Adicionar <code>poweredByHeader: false</code> no Next config.</li>
+          <li>Adicionar CSP compatível com app shell, manifest e service worker.</li>
+          <li>Aplicar HSTS em produção/HTTPS ou documentar regra condicional.</li>
+          <li>Garantir que <code>npm run lint</code>, <code>typecheck</code>, <code>test</code>, <code>build</code> e <code>test:e2e</code> passem.</li>
+          <li>Confirmar via <code>curl --head</code> que os headers esperados estão presentes.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
