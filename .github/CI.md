@@ -1,5 +1,12 @@
 # GitHub Actions — Clivyra
 
+## Target pipeline (implementation plan)
+
+Full CI belt — lint + code standards, unit tests, integration tests, E2E, security, aggregate gate, then deploy:
+
+- Plan: [`docs/ci/PIPELINE_IMPLEMENTATION_PLAN.md`](../docs/ci/PIPELINE_IMPLEMENTATION_PLAN.md)
+- Checklist: [`docs/ci/CHECKLIST.md`](../docs/ci/CHECKLIST.md)
+
 ## Current workflows
 
 | Workflow | File | When | Purpose |
