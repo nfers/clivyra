@@ -67,12 +67,12 @@ sudo chown $USER:$USER /opt/clivyra
 | `DEV_ENV_FILE` | Conteúdo completo do `.env` de **dev** |
 | `PROD_ENV_FILE` | Conteúdo completo do `.env` de **prod** |
 
-Triggers do workflow:
+Triggers do workflow (a branch de origem é sempre `master`):
 
 | Evento | Ambiente |
 | --- | --- |
-| Push em `develop` | `dev` |
-| Push em `master` | `prod` |
+| Push em `master` | `dev` |
+| Tag `v*` (ex.: `v1.0.0`) | `prod` |
 | `workflow_dispatch` | escolhe `dev` ou `prod` |
 
 ### Exemplo de `.env` (secret `DEV_ENV_FILE` / `PROD_ENV_FILE`)
@@ -90,6 +90,15 @@ POSTGRES_PASSWORD=SENHA_FORTE
 ```
 
 Em **prod**, use `COMPOSE_PROJECT_NAME=clivyra-prod` e senhas distintas.
+
+Para publicar em produção, crie uma tag apontando para um commit da `master`:
+
+```bash
+git checkout master
+git pull origin master
+git tag -a v1.0.0 -m "release v1.0.0"
+git push origin v1.0.0
+```
 
 ## 3. Como o deploy funciona
 

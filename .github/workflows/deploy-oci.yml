@@ -3,8 +3,9 @@ name: Deploy OCI
 on:
   push:
     branches:
-      - develop
       - master
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       environment:
@@ -16,7 +17,7 @@ on:
           - prod
 
 concurrency:
-  group: deploy-oci-${{ github.event.inputs.environment || (github.ref_name == 'master' && 'prod' || 'dev') }}
+  group: deploy-oci-${{ github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/v') && 'prod' || 'dev') }}
   cancel-in-progress: false
 
 permissions:
@@ -38,9 +39,9 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             ENV="${{ github.event.inputs.environment }}"
           elif [[ "${{ github.ref_name }}" == "master" ]]; then
-            ENV="prod"
-          elif [[ "${{ github.ref_name }}" == "develop" ]]; then
             ENV="dev"
+          elif [[ "${{ github.ref_type }}" == "tag" && "${{ github.ref_name }}" == v* ]]; then
+            ENV="prod"
           else
             ENV=""
           fi
