@@ -44,6 +44,7 @@ Documentação:
 - Tenant: [`docs/tenant-context.md`](docs/tenant-context.md)
 - Auth/sessão: [`docs/auth-session.md`](docs/auth-session.md)
 - RBAC: [`docs/rbac.md`](docs/rbac.md)
+- Auditoria: [`docs/audit-trail.md`](docs/audit-trail.md)
 
 ## Segurança
 

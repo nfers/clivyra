@@ -46,5 +46,14 @@ export function assertAuthBootConfig(env: NodeJS.ProcessEnv = process.env): void
     if (env.AUTH_COOKIE_SECURE !== 'true') {
       throw new Error('AUTH_COOKIE_SECURE must be true in production')
     }
+
+    const auditSalt = env.AUDIT_IP_HASH_SALT?.trim()
+    const auditDefaults = new Set(['local-dev-audit-ip-hash-salt', 'change-me-audit-ip-hash-salt'])
+    if (!auditSalt) {
+      throw new Error('AUDIT_IP_HASH_SALT is required in production')
+    }
+    if (auditDefaults.has(auditSalt)) {
+      throw new Error('AUDIT_IP_HASH_SALT must not use a development default value in production')
+    }
   }
 }

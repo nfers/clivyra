@@ -13,6 +13,7 @@ export const PERMISSIONS = [
   'settings:write',
   'users:read',
   'users:write',
+  'audit:read',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]

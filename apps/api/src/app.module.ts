@@ -1,6 +1,7 @@
 import { Module, type Type } from '@nestjs/common'
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { AuditModule } from './audit/audit.module'
 import { AuthGuard } from './auth/auth.guard'
 import { AuthModule } from './auth/auth.module'
 import { ContextAlsInterceptor } from './common/request-context/context-als.interceptor'
@@ -25,6 +26,7 @@ const testControllers: Type<unknown>[] =
   imports: [
     PrismaModule,
     TenantModule,
+    AuditModule,
     AuthModule,
     UsersModule,
     RbacModule,

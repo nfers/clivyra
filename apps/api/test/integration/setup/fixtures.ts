@@ -18,6 +18,8 @@ const hasher = PasswordHasherService.forTest(
 export const FIXTURE_PASSWORD = 'CorrectHorse1Battery!'
 
 export async function resetFixtures(): Promise<IntegrationFixtures> {
+  // TRUNCATE bypasses DELETE triggers (append-only AuditLog).
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "AuditLog"')
   await prisma.refreshSession.deleteMany()
   await prisma.passwordResetToken.deleteMany()
   await prisma.invitation.deleteMany()

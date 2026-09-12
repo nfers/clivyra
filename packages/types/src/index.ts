@@ -31,6 +31,19 @@ export {
 } from './rbac'
 export type { Permission } from './rbac'
 
+export {
+  AUDIT_ACTIONS,
+  AUDIT_ACTION_LABELS_PT,
+  isAuditAction,
+} from './audit'
+export type {
+  AuditAction,
+  AuditChangeView,
+  AuditLogActorView,
+  AuditLogView,
+  AuditOutcome,
+} from './audit'
+
 export interface AuthPermissionsResponse {
   readonly role: import('./tenant').Role
   readonly permissions: readonly import('./rbac').Permission[]

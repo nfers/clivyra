@@ -139,3 +139,4 @@ docker compose --env-file .env -f infra/oci/compose.yml logs --tail=200
 - Prod: SSH só via IP allowlist / bastion; app só atrás de HTTPS.
 - Postgres **não** deve expor `5432` publicamente no compose de deploy.
 - Separe senhas e `WEB_ORIGIN` entre dev e prod.
+- O role da aplicação **não** deve ter `TRUNCATE` (nem `BYPASSRLS`) em `AuditLog`. A tabela é append-only (triggers `audit_log_no_update` / `audit_log_no_delete`). Purge futuro (D7) exige um job com credencial de banco distinta.
