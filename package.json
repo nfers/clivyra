@@ -1,0 +1,39 @@
+{
+  "name": "clivyra",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,green \"npm run dev --workspace @clivyra/web\" \"npm run dev --workspace @clivyra/api\"",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "db:generate": "npm run prisma:generate --workspace @clivyra/api",
+    "db:migrate": "npm run prisma:migrate --workspace @clivyra/api",
+    "db:seed": "npm run prisma:seed --workspace @clivyra/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@playwright/test": "^1.52.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.20.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "multer": "2.3.0",
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    }
+  }
+}
