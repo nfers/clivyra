@@ -30,6 +30,9 @@ const EXPECTED: Record<Role, Record<Permission, boolean>> = {
     'users:read': false,
     'users:write': false,
     'audit:read': false,
+    'consent:read': true,
+    'consent:write': true,
+    'lgpd:manage': false,
   },
   RECEPTION: {
     'agenda:read': true,
@@ -45,6 +48,9 @@ const EXPECTED: Record<Role, Record<Permission, boolean>> = {
     'users:read': false,
     'users:write': false,
     'audit:read': false,
+    'consent:read': true,
+    'consent:write': true,
+    'lgpd:manage': false,
   },
 }
 

@@ -277,3 +277,85 @@ h1 + p,
   border: 1px solid #d7e6db;
   border-radius: 0.5rem;
 }
+
+.consent-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  border: 1px solid #bbd3c0;
+}
+
+.consent-badge--active {
+  background: #e8f7ec;
+  color: #14532d;
+}
+
+.consent-badge--renewal {
+  background: #fff7e6;
+  color: #92400e;
+}
+
+.consent-badge--revoked,
+.consent-badge--expired {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.consent-badge--missing {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.consent-content {
+  white-space: pre-wrap;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.75rem;
+  background: #f7fbf8;
+  border: 1px solid #d7e6db;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.consent-capture,
+.settings-form {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  max-width: 40rem;
+}
+
+.consent-status-row {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.consent-status-row li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.inline-check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.lgpd-overdue {
+  border-left: 3px solid #b91c1c;
+  padding-left: 0.5rem;
+}

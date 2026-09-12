@@ -45,6 +45,7 @@ Documentação:
 - Auth/sessão: [`docs/auth-session.md`](docs/auth-session.md)
 - RBAC: [`docs/rbac.md`](docs/rbac.md)
 - Auditoria: [`docs/audit-trail.md`](docs/audit-trail.md)
+- Consentimentos / LGPD: [`docs/consent-lgpd.md`](docs/consent-lgpd.md)
 
 ## Segurança
 

@@ -44,6 +44,35 @@ export type {
   AuditOutcome,
 } from './audit'
 
+export {
+  CONSENT_TERM_TYPES,
+  CONSENT_TERM_STATUSES,
+  CONSENT_SUBJECT_TYPES,
+  CONSENT_RECORD_STATUSES,
+  CONSENT_SOURCES,
+  LEGAL_BASES,
+  DATA_SUBJECT_REQUEST_TYPES,
+  DATA_SUBJECT_REQUEST_STATUSES,
+  CONSENT_STATUS_VIEWS,
+} from './consent'
+export type {
+  ConsentTermType,
+  ConsentTermStatus,
+  ConsentSubjectType,
+  ConsentRecordStatus,
+  ConsentSource,
+  LegalBasis,
+  DataSubjectRequestType,
+  DataSubjectRequestStatus,
+  ConsentStatusKind,
+  ConsentTermView,
+  ConsentTermContentView,
+  ConsentRecordView,
+  ConsentTypeStatusView,
+  ConsentStatusMap,
+  DataSubjectRequestView,
+} from './consent'
+
 export interface AuthPermissionsResponse {
   readonly role: import('./tenant').Role
   readonly permissions: readonly import('./rbac').Permission[]

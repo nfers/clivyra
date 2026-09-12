@@ -7,6 +7,7 @@ export interface IntegrationFixtures {
   studioB: { id: string; slug: string; name: string }
   ownerA: { id: string; email: string; membershipId: string; password: string }
   proA: { id: string; email: string; membershipId: string; password: string }
+  receptionA: { id: string; email: string; membershipId: string; password: string }
   ownerB: { id: string; email: string; membershipId: string; password: string }
   multiOwner: { id: string; email: string; password: string; membershipAId: string; membershipBId: string }
 }
@@ -20,8 +21,10 @@ export const FIXTURE_PASSWORD = 'CorrectHorse1Battery!'
 
 export async function resetFixtures(): Promise<IntegrationFixtures> {
   await flushPendingAuthAuditWrites()
-  // TRUNCATE bypasses DELETE triggers (append-only AuditLog).
-  await prisma.$executeRawUnsafe('TRUNCATE TABLE "AuditLog"')
+  // TRUNCATE bypasses DELETE triggers (append-only AuditLog / ConsentRecord).
+  await prisma.$executeRawUnsafe(
+    'TRUNCATE TABLE "AuditLog", "ConsentRecord", "ConsentTerm", "DataSubjectRequest"',
+  )
   await prisma.refreshSession.deleteMany()
   await prisma.passwordResetToken.deleteMany()
   await prisma.invitation.deleteMany()
@@ -46,6 +49,9 @@ export async function resetFixtures(): Promise<IntegrationFixtures> {
   const proAUser = await prisma.user.create({
     data: { email: 'pro@a.test', name: 'Pro A', passwordHash },
   })
+  const receptionAUser = await prisma.user.create({
+    data: { email: 'recep@a.test', name: 'Reception A', passwordHash },
+  })
   const ownerBUser = await prisma.user.create({
     data: { email: 'owner@b.test', name: 'Owner B', passwordHash },
   })
@@ -58,6 +64,9 @@ export async function resetFixtures(): Promise<IntegrationFixtures> {
   })
   const proAMembership = await prisma.membership.create({
     data: { tenantId: studioA.id, userId: proAUser.id, role: 'PROFESSIONAL' },
+  })
+  const receptionAMembership = await prisma.membership.create({
+    data: { tenantId: studioA.id, userId: receptionAUser.id, role: 'RECEPTION' },
   })
   const ownerBMembership = await prisma.membership.create({
     data: { tenantId: studioB.id, userId: ownerBUser.id, role: 'OWNER' },
@@ -82,6 +91,12 @@ export async function resetFixtures(): Promise<IntegrationFixtures> {
       id: proAUser.id,
       email: proAUser.email,
       membershipId: proAMembership.id,
+      password: FIXTURE_PASSWORD,
+    },
+    receptionA: {
+      id: receptionAUser.id,
+      email: receptionAUser.email,
+      membershipId: receptionAMembership.id,
       password: FIXTURE_PASSWORD,
     },
     ownerB: {

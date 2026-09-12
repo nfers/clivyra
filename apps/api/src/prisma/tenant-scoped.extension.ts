@@ -30,7 +30,8 @@ export function setBypassAuditHook(hook: BypassAuditHook | undefined): void {
 
 const SKIP_BYPASS_AUDIT = /^(audit-|tenant-scoped-)/
 
-const AUDIT_IMMUTABLE_OPS = new Set(['update', 'updateMany', 'delete', 'deleteMany', 'upsert'])
+const APPEND_ONLY_MODELS = new Set(['AuditLog', 'ConsentRecord'])
+const APPEND_ONLY_OPS = new Set(['update', 'updateMany', 'delete', 'deleteMany', 'upsert'])
 
 type WhereInput = Record<string, unknown>
 
@@ -186,8 +187,8 @@ export function createTenantScopedExtension() {
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
-            if (model === 'AuditLog' && AUDIT_IMMUTABLE_OPS.has(operation)) {
-              throw new AuditImmutableError()
+            if (APPEND_ONLY_MODELS.has(model) && APPEND_ONLY_OPS.has(operation)) {
+              throw new AuditImmutableError(`${model} is append-only`)
             }
 
             if (isGlobalModel(model)) {
