@@ -1,10 +1,14 @@
 import { AuthEventsAuditAdapter } from './auth-events.audit-adapter'
 import type { AuditService } from './audit.service'
 
+const log = jest.fn()
+
 jest.mock('../common/logging/app-logger.service', () => ({
   AppLogger: class {
     warn() {}
-    log() {}
+    log(...args: unknown[]) {
+      log(...args)
+    }
     error() {}
   },
 }))
@@ -15,6 +19,7 @@ describe('AuthEventsAuditAdapter', () => {
 
   beforeEach(() => {
     recordAccess.mockClear()
+    log.mockClear()
   })
 
   it('maps login succeeded with tenantSlug metadata', () => {
@@ -78,5 +83,25 @@ describe('AuthEventsAuditAdapter', () => {
     const adapter = new AuthEventsAuditAdapter(audit)
     adapter.emit('users.role.changed', { tenantId: 't1', persist: false })
     expect(recordAccess).not.toHaveBeenCalled()
+  })
+
+  it('masks invitation email in structured logs', () => {
+    const adapter = new AuthEventsAuditAdapter(audit)
+    adapter.emit('users.invitation.created', {
+      tenantId: 't1',
+      invitationId: 'inv-1',
+      email: 'ana@example.com',
+      role: 'PROFESSIONAL',
+    })
+    expect(log).toHaveBeenCalledWith(
+      'users.invitation.created',
+      expect.objectContaining({
+        metric: 'users.invitation.created',
+        email: 'an***@example.com',
+        role: 'PROFESSIONAL',
+      }),
+    )
+    const logged = log.mock.calls[0]![1] as Record<string, unknown>
+    expect(JSON.stringify(logged)).not.toContain('ana@example.com')
   })
 })

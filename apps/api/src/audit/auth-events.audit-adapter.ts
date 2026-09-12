@@ -27,6 +27,22 @@ function compactMetadata(
   return Object.keys(out).length > 0 ? out : undefined
 }
 
+const EMAIL_LOG_KEYS = new Set(['email', 'inviteeemail', 'to'])
+
+/** Structured-log view of an auth event — never plaintext email. */
+function sanitizePayloadForLog(payload: AuthEventPayload): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(payload)) {
+    if (value === undefined) continue
+    if (EMAIL_LOG_KEYS.has(key.toLowerCase()) && typeof value === 'string') {
+      out[key] = maskEmail(value)
+      continue
+    }
+    out[key] = value
+  }
+  return out
+}
+
 const pendingWrites: Promise<unknown>[] = []
 
 /** Await in-flight audit writes (integration fixtures). */
@@ -43,7 +59,7 @@ export class AuthEventsAuditAdapter implements AuthEventsPort {
   emit(event: string, payload: AuthEventPayload = {}): void {
     this.logger.log(event, {
       metric: event,
-      ...payload,
+      ...sanitizePayloadForLog(payload),
     })
 
     if (payload.persist === false) return
