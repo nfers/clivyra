@@ -7,10 +7,14 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+  workflow_dispatch:
 
 concurrency:
-  group: pr-quality-${{ github.event.pull_request.number }}
+  group: pr-quality-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   readiness:
@@ -27,6 +31,8 @@ jobs:
         id: detect
         shell: bash
         run: |
+          set -euo pipefail
+
           if [[ -f package.json && -f package-lock.json ]]; then
             echo "node_ready=true" >> "$GITHUB_OUTPUT"
             echo "Node workspace detected. Full quality gates will run."
@@ -34,13 +40,16 @@ jobs:
             echo "node_ready=false" >> "$GITHUB_OUTPUT"
             echo "Node workspace is not bootstrapped yet."
             echo "Expected package.json and package-lock.json at repository root."
-            echo "This is valid before Sprint 0 bootstrap is implemented."
+            echo "This is valid before Sprint 0 bootstrap is merged."
           fi
 
   quality:
     name: Lint, Typecheck and Tests
     needs: readiness
-    if: needs.readiness.outputs.node_ready == 'true'
+    if: >-
+      always()
+      && needs.readiness.result == 'success'
+      && needs.readiness.outputs.node_ready == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -68,7 +77,10 @@ jobs:
   security:
     name: Security Guardrails
     needs: readiness
-    if: needs.readiness.outputs.node_ready == 'true'
+    if: >-
+      always()
+      && needs.readiness.result == 'success'
+      && needs.readiness.outputs.node_ready == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -90,11 +102,67 @@ jobs:
   bootstrap-status:
     name: Bootstrap Gate Status
     needs: readiness
-    if: needs.readiness.outputs.node_ready != 'true'
+    if: >-
+      always()
+      && needs.readiness.result == 'success'
+      && needs.readiness.outputs.node_ready != 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Explain skipped Node gates
         run: |
           echo "Quality and security Node gates are intentionally skipped."
-          echo "They will activate automatically when Sprint 0 creates package.json and package-lock.json."
+          echo "They activate automatically when package.json and package-lock.json exist at the repo root."
+          echo "Track Sprint 0 bootstrap (CLI-5) for the monorepo foundation."
+
+  gate-result:
+    name: Quality Gate Result
+    needs:
+      - readiness
+      - quality
+      - security
+      - bootstrap-status
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Aggregate gate outcome
+        shell: bash
+        env:
+          READINESS: ${{ needs.readiness.result }}
+          QUALITY: ${{ needs.quality.result }}
+          SECURITY: ${{ needs.security.result }}
+          BOOTSTRAP: ${{ needs.bootstrap-status.result }}
+          NODE_READY: ${{ needs.readiness.outputs.node_ready }}
+        run: |
+          set -euo pipefail
+
+          echo "readiness=$READINESS"
+          echo "node_ready=${NODE_READY:-unset}"
+          echo "quality=$QUALITY"
+          echo "security=$SECURITY"
+          echo "bootstrap-status=$BOOTSTRAP"
+
+          if [[ "$READINESS" != "success" ]]; then
+            echo "::error::Repository Readiness failed before quality checks could run."
+            echo "If the job has empty steps and never starts a runner, check GitHub billing:"
+            echo "https://github.com/settings/billing"
+            echo "Common cause: account locked due to a billing issue (Actions minutes / payment method)."
+            exit 1
+          fi
+
+          if [[ "${NODE_READY:-}" == "true" ]]; then
+            if [[ "$QUALITY" != "success" || "$SECURITY" != "success" ]]; then
+              echo "::error::Node quality/security gates failed."
+              exit 1
+            fi
+            echo "Full quality gate passed (lint, typecheck, tests, security)."
+            exit 0
+          fi
+
+          if [[ "$BOOTSTRAP" != "success" ]]; then
+            echo "::error::Bootstrap status job did not succeed."
+            exit 1
+          fi
+
+          echo "Pre-bootstrap gate passed. Node gates correctly skipped until monorepo bootstrap."
