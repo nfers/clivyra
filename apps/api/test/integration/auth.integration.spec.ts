@@ -126,6 +126,76 @@ describe('auth session (integration)', () => {
     expect(family.every((session) => session.revokedAt !== null)).toBe(true)
   })
 
+  it('allows at most one concurrent refresh of the same token', async () => {
+    const login = await request('POST', '/auth/login', {
+      body: { email: fixtures.ownerA.email, password: fixtures.ownerA.password },
+    })
+    const session = login.body as { refreshToken: string }
+    const [first, second] = await Promise.all([
+      request('POST', '/auth/refresh', { body: { refreshToken: session.refreshToken } }),
+      request('POST', '/auth/refresh', { body: { refreshToken: session.refreshToken } }),
+    ])
+
+    const statuses = [first.status, second.status].sort()
+    expect(statuses.filter((status) => status === 200).length).toBeLessThanOrEqual(1)
+    expect(statuses).toContain(401)
+
+    const rows = await prisma.refreshSession.findMany({
+      where: { userId: fixtures.ownerA.id },
+      orderBy: { createdAt: 'asc' },
+    })
+    expect(rows.length).toBeGreaterThanOrEqual(1)
+    const familyIds = new Set(rows.map((row) => row.familyId))
+    expect(familyIds.size).toBe(1)
+
+    const active = rows.filter((row) => row.revokedAt === null)
+    // Winner may keep one active session; if loser triggered family revoke, zero active.
+    expect(active.length).toBeLessThanOrEqual(1)
+    if (active.length === 1) {
+      const winnerBodies = [first, second].filter((item) => item.status === 200)
+      expect(winnerBodies).toHaveLength(1)
+      const winner = winnerBodies[0]!.body as { refreshToken: string }
+      const stillValid = await request('POST', '/auth/refresh', {
+        body: { refreshToken: winner.refreshToken },
+      })
+      expect(stillValid.status).toBe(200)
+    }
+  })
+
+  it('signup creates tenant+owner when flag is enabled', async () => {
+    const previous = process.env.AUTH_SELF_SIGNUP_ENABLED
+    process.env.AUTH_SELF_SIGNUP_ENABLED = 'true'
+    try {
+      const response = await request('POST', '/auth/signup', {
+        body: {
+          studioName: 'Studio Novo',
+          slug: 'studio-novo',
+          ownerName: 'Owner Novo',
+          email: 'owner@studio-novo.test',
+          password: 'CorrectHorse1Battery!',
+        },
+      })
+      expect(response.status).toBe(201)
+      const body = response.body as {
+        tenant: { slug: string }
+        membership: { role: string }
+        refreshToken?: string
+      }
+      expect(body.tenant.slug).toBe('studio-novo')
+      expect(body.membership.role).toBe('OWNER')
+      expect(body.refreshToken).toBeTruthy()
+
+      const membership = await prisma.membership.findFirst({
+        where: { user: { email: 'owner@studio-novo.test' } },
+        include: { tenant: true },
+      })
+      expect(membership?.role).toBe('OWNER')
+      expect(membership?.tenant.slug).toBe('studio-novo')
+    } finally {
+      process.env.AUTH_SELF_SIGNUP_ENABLED = previous
+    }
+  })
+
   it('rejects refresh after logout', async () => {
     const login = await request('POST', '/auth/login', {
       body: { email: fixtures.ownerA.email, password: fixtures.ownerA.password },

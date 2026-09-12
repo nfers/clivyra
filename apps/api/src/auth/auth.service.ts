@@ -54,29 +54,32 @@ export class AuthService {
     const passwordHash = await this.hasher.hash(dto.password)
 
     try {
-      const created = await this.prisma.$transaction(async (tx) => {
-        const tenant = await tx.tenant.create({
-          data: { slug: dto.slug, name: dto.studioName },
-          select: { id: true, slug: true, name: true },
-        })
-        const user = await tx.user.create({
-          data: {
-            email,
-            name: dto.ownerName,
-            passwordHash,
-          },
-          select: { id: true, email: true, name: true },
-        })
-        const membership = await tx.membership.create({
-          data: {
-            tenantId: tenant.id,
-            userId: user.id,
-            role: 'OWNER',
-          },
-          select: { id: true, role: true },
-        })
-        return { tenant, user, membership }
-      })
+      // Membership is tenant-owned; signup has no ALS yet — bypass with explicit reason.
+      const created = await this.prisma.bypassTenant('auth-signup', () =>
+        this.prisma.$transaction(async (tx) => {
+          const tenant = await tx.tenant.create({
+            data: { slug: dto.slug, name: dto.studioName },
+            select: { id: true, slug: true, name: true },
+          })
+          const user = await tx.user.create({
+            data: {
+              email,
+              name: dto.ownerName,
+              passwordHash,
+            },
+            select: { id: true, email: true, name: true },
+          })
+          const membership = await tx.membership.create({
+            data: {
+              tenantId: tenant.id,
+              userId: user.id,
+              role: 'OWNER',
+            },
+            select: { id: true, role: true },
+          })
+          return { tenant, user, membership }
+        }),
+      )
 
       return this.createSessionResponse({
         userId: created.user.id,
@@ -300,19 +303,77 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token')
     }
 
-    const rotated = await this.createSessionResponse({
+    const client = resolveClientKind(request.headers)
+    const ip = clientIp(request)
+    const userAgentHeader = request.headers['user-agent']
+    const userAgent = truncateUserAgent(
+      Array.isArray(userAgentHeader) ? userAgentHeader[0] : userAgentHeader,
+    )
+    const nextRefreshToken = this.tokens.createOpaqueToken()
+    const nextTokenHash = this.tokens.hashOpaqueToken(nextRefreshToken)
+
+    /**
+     * Atomic rotation: claim the old row (id + tokenHash + revokedAt null) then create
+     * the replacement in the same transaction. Concurrent refreshers lose the claim
+     * (count !== 1) and are treated as reuse → whole family revoked.
+     */
+    const rotated = await this.prisma.bypassTenant('auth-refresh-rotate', () =>
+      this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.refreshSession.updateMany({
+          where: {
+            id: session.id,
+            tokenHash,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: now,
+            revokedReason: 'rotation',
+          },
+        })
+
+        if (claimed.count !== 1) {
+          return { ok: false as const }
+        }
+
+        const created = await tx.refreshSession.create({
+          data: {
+            userId: session.user.id,
+            tenantId: session.tenantId,
+            familyId: session.familyId,
+            tokenHash: nextTokenHash,
+            expiresAt: this.tokens.refreshTokenExpiresAt(),
+            lastUsedAt: now,
+            userAgent,
+            ipHash: hashIp(ip),
+          },
+          select: { id: true },
+        })
+
+        await tx.refreshSession.update({
+          where: { id: session.id },
+          data: { replacedById: created.id },
+        })
+
+        return { ok: true as const, sessionId: created.id }
+      }),
+    )
+
+    if (!rotated.ok) {
+      await this.revokeFamily(session.user.id, session.familyId, 'reuse_detected')
+      this.events.emit('auth.refresh.reuse_detected', {
+        userId: session.user.id,
+        tenantId: session.tenantId,
+        familyId: session.familyId,
+        sessionId: session.id,
+        reason: 'concurrent_or_reuse',
+      })
+      throw new UnauthorizedException('Invalid refresh token')
+    }
+
+    const access = this.tokens.signAccessToken({
       userId: session.user.id,
       tenantId: session.tenantId,
-      tenantSlug: membership.tenant.slug,
-      tenantName: membership.tenant.name,
-      membershipId: membership.id,
-      role: membership.role,
-      email: session.user.email,
-      name: session.user.name,
-      request,
-      client: resolveClientKind(request.headers),
-      familyId: session.familyId,
-      replacesSessionId: session.id,
+      sessionId: rotated.sessionId,
     })
 
     this.events.emit('auth.refresh.rotated', {
@@ -322,7 +383,30 @@ export class AuthService {
       sessionId: session.id,
     })
 
-    return rotated
+    const response: AuthSessionResponse = {
+      accessToken: access.token,
+      accessTokenExpiresAt: access.expiresAt.toISOString(),
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      },
+      tenant: {
+        id: session.tenantId,
+        slug: membership.tenant.slug,
+        name: membership.tenant.name,
+      },
+      membership: {
+        id: membership.id,
+        role: membership.role as Role,
+      },
+    }
+
+    if (client === 'api') {
+      return { ...response, refreshToken: nextRefreshToken }
+    }
+
+    return response
   }
 
   async logout(dto: LogoutDto): Promise<void> {
@@ -518,6 +602,22 @@ export class AuthService {
 
     const session = await this.prisma.bypassTenant('auth-create-session', () =>
       this.prisma.$transaction(async (tx) => {
+        if (input.replacesSessionId) {
+          const claimed = await tx.refreshSession.updateMany({
+            where: {
+              id: input.replacesSessionId,
+              revokedAt: null,
+            },
+            data: {
+              revokedAt: new Date(),
+              revokedReason: 'rotation',
+            },
+          })
+          if (claimed.count !== 1) {
+            throw new UnauthorizedException('Invalid refresh token')
+          }
+        }
+
         const created = await tx.refreshSession.create({
           data: {
             userId: input.userId,
@@ -535,11 +635,7 @@ export class AuthService {
         if (input.replacesSessionId) {
           await tx.refreshSession.update({
             where: { id: input.replacesSessionId },
-            data: {
-              revokedAt: new Date(),
-              revokedReason: 'rotation',
-              replacedById: created.id,
-            },
+            data: { replacedById: created.id },
           })
         }
 
