@@ -22,7 +22,7 @@
     "db:migrate": "npm run prisma:migrate --workspace @clivyra/api",
     "db:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "db:seed": "npm run prisma:seed --workspace @clivyra/api",
-    "check:standards": "node scripts/check-tenant-boundaries.mjs && node scripts/check-audited-modules.mjs"
+    "check:standards": "node scripts/check-tenant-boundaries.mjs && node scripts/check-audited-modules.mjs && node scripts/check-lgpd-ports.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",

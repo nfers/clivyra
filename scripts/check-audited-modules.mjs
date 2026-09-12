@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const API_SRC = path.join(ROOT, 'apps/api/src')
 
-const SENSITIVE_MODULES = ['clinical-record', 'finance', 'users', 'consent', 'professionals']
+const SENSITIVE_MODULES = ['clinical-record', 'finance', 'users', 'consent', 'professionals', 'lgpd']
 
 const MUTATION = /@(Post|Patch|Put|Delete)\b/
 const AUDITED = /@Audited\b|AuditService/

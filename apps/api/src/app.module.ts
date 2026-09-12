@@ -6,7 +6,9 @@ import { AuthGuard } from './auth/auth.guard'
 import { AuthModule } from './auth/auth.module'
 import { ContextAlsInterceptor } from './common/request-context/context-als.interceptor'
 import { TenantExceptionFilter } from './common/filters/tenant-exception.filter'
+import { ConsentModule } from './consent/consent.module'
 import { HealthController } from './health.controller'
+import { LgpdModule } from './lgpd/lgpd.module'
 import { MailerModule } from './mailer/mailer.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { RbacGuard } from './rbac/rbac.guard'
@@ -29,6 +31,8 @@ const testControllers: Type<unknown>[] =
     AuditModule,
     AuthModule,
     UsersModule,
+    ConsentModule,
+    LgpdModule,
     RbacModule,
     MailerModule,
     ThrottlerModule.forRoot([

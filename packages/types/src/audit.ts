@@ -22,6 +22,21 @@ export const AUDIT_ACTIONS = [
   'system.tenant_bypass',
   // auditoria
   'audit.queried',
+  // consent / LGPD (CLI-15)
+  'consent.term.created',
+  'consent.term.published',
+  'consent.term.retired',
+  'consent.granted',
+  'consent.revoked',
+  'consent.renewed',
+  'lgpd.request.opened',
+  'lgpd.request.updated',
+  'lgpd.request.executed',
+  'lgpd.request.completed',
+  'lgpd.request.rejected',
+  'lgpd.data.exported',
+  'lgpd.data.anonymized',
+  'lgpd.data.retained',
 ] as const
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number]
@@ -74,6 +89,20 @@ export const AUDIT_ACTION_LABELS_PT: Record<AuditAction, string> = {
   'users.membership.activated': 'Usuário reativado',
   'system.tenant_bypass': 'Bypass de tenant',
   'audit.queried': 'Auditoria consultada',
+  'consent.term.created': 'Termo de consentimento criado',
+  'consent.term.published': 'Termo de consentimento publicado',
+  'consent.term.retired': 'Termo de consentimento retirado',
+  'consent.granted': 'Consentimento registrado',
+  'consent.revoked': 'Consentimento revogado',
+  'consent.renewed': 'Consentimento renovado',
+  'lgpd.request.opened': 'Requisição LGPD aberta',
+  'lgpd.request.updated': 'Requisição LGPD atualizada',
+  'lgpd.request.executed': 'Requisição LGPD executada',
+  'lgpd.request.completed': 'Requisição LGPD concluída',
+  'lgpd.request.rejected': 'Requisição LGPD rejeitada',
+  'lgpd.data.exported': 'Dados exportados (LGPD)',
+  'lgpd.data.anonymized': 'Dados anonimizados (LGPD)',
+  'lgpd.data.retained': 'Dados retidos (LGPD)',
 }
 
 export function isAuditAction(value: string): value is AuditAction {

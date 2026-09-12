@@ -14,6 +14,9 @@ export const PERMISSIONS = [
   'users:read',
   'users:write',
   'audit:read',
+  'consent:read',
+  'consent:write',
+  'lgpd:manage',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]
@@ -22,6 +25,7 @@ export type Permission = (typeof PERMISSIONS)[number]
  * Role → permission map for P0.
  * D4: ADMIN keeps clinical-record access.
  * `tenant:manage` arrives in CLI-16 and will be OWNER-only.
+ * CLI-15: consent:* for all roles; lgpd:manage for OWNER/ADMIN only.
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   OWNER: PERMISSIONS,
@@ -34,8 +38,18 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'clinical-record:read',
     'clinical-record:write',
     'settings:read',
+    'consent:read',
+    'consent:write',
   ],
-  RECEPTION: ['agenda:read', 'agenda:write', 'clients:read', 'clients:write', 'settings:read'],
+  RECEPTION: [
+    'agenda:read',
+    'agenda:write',
+    'clients:read',
+    'clients:write',
+    'settings:read',
+    'consent:read',
+    'consent:write',
+  ],
 }
 
 export const ROLE_RANK: Record<Role, number> = {

@@ -52,6 +52,44 @@ async function main() {
       isActive: true,
     },
   })
+
+  // CLI-15: draft consent templates for OWNER review (legal review required before production)
+  const templates: Array<{ type: 'PRIVACY_POLICY' | 'DATA_PROCESSING'; title: string; content: string }> = [
+    {
+      type: 'PRIVACY_POLICY',
+      title: 'Política de Privacidade',
+      content:
+        '# Política de Privacidade\n\nTexto-modelo genérico. **Revisão jurídica obrigatória** antes do uso em produção comercial.\n\nEste studio trata dados pessoais para prestação de serviços de saúde e bem-estar, conforme a LGPD.',
+    },
+    {
+      type: 'DATA_PROCESSING',
+      title: 'Termo de Tratamento de Dados de Saúde',
+      content:
+        '# Termo de Tratamento de Dados\n\nTexto-modelo genérico. **Revisão jurídica obrigatória** antes do uso em produção comercial.\n\nConsentimento para tratamento de dados de saúde (art. 11 LGPD) no âmbito do atendimento.',
+    },
+  ]
+
+  for (const template of templates) {
+    const existing = await prisma.consentTerm.findFirst({
+      where: { tenantId: tenant.id, type: template.type, status: 'DRAFT', version: 0 },
+    })
+    if (!existing) {
+      await prisma.consentTerm.create({
+        data: {
+          tenantId: tenant.id,
+          type: template.type,
+          version: 0,
+          title: template.title,
+          content: template.content,
+          contentHash: '',
+          purposes: template.type === 'PRIVACY_POLICY' ? ['operacao', 'comunicacao'] : ['prontuario', 'atendimento'],
+          legalBasis: 'CONSENT',
+          status: 'DRAFT',
+          createdByUserId: admin.id,
+        },
+      })
+    }
+  }
 }
 
 void main()

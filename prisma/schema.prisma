@@ -27,6 +27,63 @@ enum AuditOutcome {
   FAILURE
 }
 
+enum ConsentTermType {
+  PRIVACY_POLICY
+  DATA_PROCESSING
+  TREATMENT
+  IMAGE_USE
+  COMMUNICATIONS
+}
+
+enum ConsentTermStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+enum ConsentSubjectType {
+  PATIENT
+  LEAD
+  USER
+}
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+  EXPIRED
+}
+
+enum ConsentSource {
+  WEB_FORM
+  IN_PERSON
+  IMPORT
+  API
+}
+
+enum LegalBasis {
+  CONSENT
+  CONTRACT
+  LEGAL_OBLIGATION
+  HEALTH_PROTECTION
+  LEGITIMATE_INTEREST
+}
+
+enum DataSubjectRequestType {
+  ACCESS
+  EXPORT
+  RECTIFICATION
+  ERASURE
+  CONSENT_REVOCATION
+}
+
+enum DataSubjectRequestStatus {
+  RECEIVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
 model SystemMetadata {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -46,6 +103,9 @@ model Tenant {
   sessions     RefreshSession[]
   invitations  Invitation[]
   auditLogs    AuditLog[]
+  consentTerms ConsentTerm[]
+  consentRecords ConsentRecord[]
+  dataSubjectRequests DataSubjectRequest[]
 
   @@index([isActive])
 }
@@ -174,4 +234,79 @@ model PasswordResetToken {
 
   @@index([userId, usedAt])
   @@index([expiresAt])
+}
+
+/// Versioned consent term per tenant (CLI-15). Content immutable after PUBLISHED.
+model ConsentTerm {
+  id                       String            @id @default(cuid())
+  tenantId                 String
+  type                     ConsentTermType
+  version                  Int               @default(0)
+  title                    String
+  content                  String
+  contentHash              String            @default("")
+  purposes                 String[]
+  legalBasis               LegalBasis        @default(CONSENT)
+  requiresRenewalAfterDays Int?
+  requiresReconsent        Boolean           @default(false)
+  status                   ConsentTermStatus @default(DRAFT)
+  publishedAt              DateTime?
+  retiredAt                DateTime?
+  createdByUserId          String
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  tenant                   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  records                  ConsentRecord[]
+
+  @@unique([tenantId, type, version])
+  @@index([tenantId, type, status])
+}
+
+/// Append-only consent history. Current state = newest row per (tenant, subject, term.type).
+model ConsentRecord {
+  id                String             @id @default(cuid())
+  tenantId          String
+  subjectType       ConsentSubjectType
+  subjectId         String
+  termId            String
+  termVersion       Int
+  status            ConsentStatus
+  source            ConsentSource
+  grantedAt         DateTime?
+  revokedAt         DateTime?
+  expiresAt         DateTime?
+  supersedesId      String?            @unique
+  collectedByUserId String?
+  evidence          Json?
+  notes             String?
+  createdAt         DateTime           @default(now())
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  term              ConsentTerm        @relation(fields: [termId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, subjectType, subjectId, createdAt(sort: Desc)])
+  @@index([tenantId, termId, status])
+  @@index([tenantId, status, expiresAt])
+}
+
+model DataSubjectRequest {
+  id               String                   @id @default(cuid())
+  tenantId         String
+  subjectType      ConsentSubjectType
+  subjectId        String
+  type             DataSubjectRequestType
+  status           DataSubjectRequestStatus @default(RECEIVED)
+  channel          ConsentSource
+  requestedAt      DateTime                 @default(now())
+  dueAt            DateTime
+  openedByUserId   String
+  assignedToUserId String?
+  resolutionNotes  String?
+  resultRef        String?
+  completedAt      DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status, dueAt])
+  @@index([tenantId, subjectType, subjectId])
 }

@@ -46,6 +46,12 @@ export function AppHeader({ session }: { session: MeResponse }) {
           <Can permission="audit:read">
             <Link href="/app/configuracoes/auditoria">Auditoria</Link>
           </Can>
+          <Can permission="consent:read">
+            <Link href="/app/configuracoes/termos">Termos</Link>
+          </Can>
+          <Can permission="lgpd:manage">
+            <Link href="/app/configuracoes/lgpd">LGPD</Link>
+          </Can>
         </nav>
       </div>
       <div className="app-header-actions">
