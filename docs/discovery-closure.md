@@ -41,3 +41,21 @@ Studio Vega is the design partner, so the pilot does not by itself validate the
 commercial fit for other studio and clinic profiles. Pricing, commercial limits,
 and onboarding details follow pilot validation. LGPD legal gates remain required
 before commercial production.
+
+## Sprint map (Notion ↔ Linear, 12 Sep 2026)
+
+Canonical delivery cut for the pilot and post-pilot roadmap:
+
+| Sprint | Priority | Focus |
+| --- | --- | --- |
+| 0 | P0 | Infra |
+| 1 | P0 | Product foundation (tenant, auth, RBAC, audit, LGPD, studio setup) |
+| 2 | P0 | Registration & Patient 360 (no CRM) |
+| 3 | P0 | Scheduling (no class capacity / make-ups) |
+| 4 | P0 | Plans & receivables / simple cash flow (no accounts payable) |
+| 5 | P0 | Clinical lite & go-live hardening |
+| 6 | P1 | CRM, classes, dashboard, AP, alerts |
+| 7 | P1 | WhatsApp, Google Calendar, email |
+| 8 | P2 | Advanced clinical, documents/signature, automations, AI |
+
+**Pilot complete = end of Sprint 5.** Product truth stays in Notion; execution tracks the same map in Linear (`Clivyra MVP`, milestones Sprint 0–8, labels P0/P1/P2).
